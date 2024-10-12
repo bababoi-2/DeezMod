@@ -24,7 +24,7 @@ function execute_plugins(plugins, context) {
 }
 ```
 
-## 3. Edit the different js files.
+## 3. Edit the different js files (or [download](https://github.com/bababoi-2/deezer-desktop-app-injection/tree/main/source) them).
 Structure:
 1. We load the plugins using main.js
 2. We execute plugins in the main context
