@@ -1,5 +1,7 @@
 # deezer-desktop-app-injection
 A tool/documentation for injecting custom scripts into the deezer desktop app
+> Note: any mention of "%localappdata%\Programs\deezer-desktop\" can be replaced with wherever your deezer installation is located
+
 
 ## Setup
 
@@ -13,5 +15,10 @@ A tool/documentation for injecting custom scripts into the deezer desktop app
 2. Create the plugins folder in `%localappdata%\Programs\deezer-desktop\` and place your plugins inside
 
 ### Full manual way
-1. Follow the [setup](https://github.com/bababoi-2/deezer-desktop-app-injection/edit/main/README.md)
+1. Follow the [setup](https://github.com/bababoi-2/deezer-desktop-app-injection/blob/main/docs/setup.md)
 2. Create the plugins folder in `%localappdata%\Programs\deezer-desktop\` and place your plugins inside
+
+## Usage
+Place plugins inside of "%localappdata%\Programs\deezer-desktop\plugins". They need to follow this [structure](https://github.com/bababoi-2/deezer-desktop-app-injection/blob/main/docs/creating_plugins.md#plugin-structure).
+Userscripts can be pretty easily ported to the desktop app if they are not too reliant on the functions of the userscript managers.\
+See example plugins [here](https://github.com/bababoi-2/deezer-desktop-app-injection/tree/main/plugins)
