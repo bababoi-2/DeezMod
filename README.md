@@ -87,8 +87,8 @@ asar pack unpacked app.asar
 and replace the old app.asar.
 
 #### JS files located in %localappdata%\Programs\deezer-desktop\browser_plugins, \electron_plugins \main_plugins now get loaded on each deezer start
-Broswer plugins are loaded within the browser context, meaning they can be used to edit the ui or similar.
-Electron plugins are loaded within the electron/node context, meaning they can be used to do file operations or change the behaviour of the deezer app. 
-Main Plugins are launched at the start of the app, they are the first entry point to the app. They can be used to change behaviour of the deezer app. They are launched withing the windows context (e.g. to view logs, use cmd).
+- Broswer plugins are loaded within the browser context, meaning they can be used to edit the ui or similar.
+- Electron plugins are loaded within the electron/node context, meaning they can be used to do file operations or change the behaviour of the deezer app. 
+- Main Plugins are launched at the start of the app, they are the first entry point to the app. They can be used to change behaviour of the deezer app. They are launched withing the windows context (e.g. to view logs, use cmd).
 ##### NOTE: Every type of plugins can be used to do malicious stuff (steal your data, corrupt files etc)
 
