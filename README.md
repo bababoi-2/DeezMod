@@ -1,13 +1,13 @@
 # deezer-desktop-app-injection
 A tool/documentation for injecting custom scripts into the deezer desktop app
-> Note: any mention of "%localappdata%\Programs\deezer-desktop\" can be replaced with wherever your deezer installation is located
+> Note: any mention of `%localappdata%\Programs\deezer-desktop\` can be replaced with wherever your deezer installation is located
 
 
 ## Setup
 
 ### Installer (Automatic, normal/full way)
 1. Download the [installer](https://raw.githubusercontent.com/bababoi-2/deezer-desktop-app-injection/refs/heads/main/installer.bat)
-2. Place it right besides the app.asar in "%localappdata%\Programs\deezer-desktop\resources" or whatever your installation is
+2. Place it right besides the app.asar in `%localappdata%\Programs\deezer-desktop\resources`
 3. Follow instructions of the installer
 
 ### Easy manual way
