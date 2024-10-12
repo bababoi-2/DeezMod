@@ -1,7 +1,8 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application",
-    context: "renderer",
+    version: "1.1.3",
+	context: "renderer",
     scope: "own",
     func: () => {
         // Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application
@@ -36,16 +37,12 @@ module.exports = {
             return resp.jwt;
         }
 
-        function get_user_id() {
-            return window.localStorage.getItem("ajs_user_id").slice(1, -1);
-        }
-
         function get_all_followed_artists(user_id) {
             // we use _order since that returns a list and not a json object.
             // we sort the songs by release date anyways so the order of the artist does not matter
             return new Promise((resolve, reject) => {
                 const wait_for_localstorage_data = setInterval(() => {
-                    let artists = window.localStorage.getItem("favorites_artist_order_" + user_id);
+                    let artists = localStorage.getItem("favorites_artist_order_" + user_id);
                     if (artists) {
                         clearInterval(wait_for_localstorage_data);
                         resolve(JSON.parse(artists));
@@ -57,10 +54,6 @@ module.exports = {
         async function get_amount_of_songs_of_album(api_token, album_id) {
             const r = await fetch("https://www.deezer.com/ajax/gw-light.php?method=song.getListByAlbum&input=3&api_version=1.0&api_token="+api_token, {
                 "body": `{\"alb_id\":\"${album_id}\",\"start\":0,\"nb\":0}`,
-                "headers": {
-                    "content-type": "text/plain;charset=UTF-8",
-                    "x-deezer-user": user_id
-                },
                 "method": "POST",
                 "credentials": "include"
             });
@@ -81,7 +74,7 @@ module.exports = {
                     "operationName": "ArtistDiscographyByType",
                     "variables": {
                         "artistId": artist_id,
-                        "nb": Math.floor(config.max_song_age/7), // 1 release every week to try to get as little songs as possible, but also try to avoid multiple requests
+                        "nb": Math.floor(config.max_song_age/5), // 1 release every 5 days to try to get as little songs as possible, but also try to avoid multiple requests
                         "cursor": cursor,
                         "mode": "ALL",
                         "subType": null,
@@ -159,7 +152,7 @@ module.exports = {
 
                     while (next_page) {
                         if (cursor) {
-                            log("Next request for the same artist (bad)");
+                            log("Next request for the same artist (bad)", artist_id);
                         }
                         [releases, next_page, cursor] = await get_releases(auth_token, artist_id, cursor);
 
@@ -344,18 +337,18 @@ module.exports = {
 
 
         function get_cache() {
-            const cache = window.localStorage.getItem("release_radar_cache");
+            const cache = localStorage.getItem("release_radar_cache");
             return cache ? JSON.parse(cache) : {
                 has_seen: {}
             };
         }
 
         function set_cache(data) {
-            window.localStorage.setItem("release_radar_cache", JSON.stringify(data));
+            localStorage.setItem("release_radar_cache", JSON.stringify(data));
         }
 
         function get_config() {
-            const config = window.localStorage.getItem("config");
+            const config = localStorage.getItem("release_radar_config");
             return config ? JSON.parse(config) : {
                 max_song_count: 25,
                 max_song_age: 90,
@@ -366,7 +359,7 @@ module.exports = {
         }
 
         function set_config(data) {
-            window.localStorage.setItem("release_radar_config", JSON.stringify(data));;
+            localStorage.setItem("release_radar_config", JSON.stringify(data));;
         }
 
         function pluralize(string, amount) {
@@ -1078,7 +1071,7 @@ module.exports = {
 
             log("Getting user data");
             const user_data = await get_user_data();
-            user_id = get_user_id();
+            user_id = localStorage.getItem("ajs_user_id").slice(1, -1);
             
             const api_token = user_data.results.checkForm;
 
@@ -1146,4 +1139,3 @@ module.exports = {
         }
     }
 }
-
