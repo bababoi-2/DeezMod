@@ -74,4 +74,9 @@ Note: We insert inside of everything in order to allow for editing variables onl
 })(), module.exports = __webpack_exports__ // insert point end
 ```
 
+## 3. Pack the source
+Now we need to repack the source into an app.asar.
+```
+asar pack <out dir> app.asar
+```
 
