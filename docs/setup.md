@@ -1,4 +1,4 @@
-# Setup
+# Setup for developement/ Technical information
 
 ## 1. Unpack the app.asar file
 Located (on windows) at "%localappdata%\Programs\deezer-desktop\resources\app.asar" we can extract the content using\
