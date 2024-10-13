@@ -24,8 +24,8 @@ jobs:
 
       - name: Zip files
         run: |
-          mkdir release_files
-          zip -r release_files/source.zip source/* -x "source/README-md"
+          cd source/
+          zip -r source.zip * -x "README.md"
       
       - name: Get latest release
         id: get_latest_release
@@ -40,7 +40,7 @@ jobs:
         with:
           tag_name: ${{ env.LATEST_TAG }}
           name: 'Release loader files'
-          files: release_files/source.zip
+          files: source/source.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
