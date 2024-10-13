@@ -15,12 +15,15 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            source
 
       - name: Zip files
         run: |
           mkdir release_files
-          zip -r release_files/source.zip "source/*" -x "source/README-md"
+          zip -r release_files/source.zip source -x "source/README-md"
 
       - name: Create GitHub Release
         id: create_release
