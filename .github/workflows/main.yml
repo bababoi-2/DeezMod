@@ -1,5 +1,5 @@
 # note: this was created using chatgpt
-name: Update Release on source change
+name: Update release on source change
 
 on:
   push:
@@ -25,12 +25,12 @@ jobs:
           mkdir release_files
           zip -r release_files/source.zip source -x "source/README-md"
 
-      - name: Create GitHub Release
+      - name: Create release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: 'v1.0.${{ github.run_number }}'
-          release_name: 'Automated release ${{ github.run_number }}'
+          name: 'Automated release ${{ github.run_number }}. Source contains source for the loader, app.asar is a prepacked loader.'
           files: release_files/source.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
