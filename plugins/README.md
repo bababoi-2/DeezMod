@@ -1,5 +1,5 @@
-## DevTools
-Enables Dev Tools, open with ctrl+shift+i
+## Dev Mode
+Enables Dev Mode (enables DevTools, open with ctrl+shift+i.) 
 
 ## Disable Sentry
 Disables the sending of telementry to Sentry.io
