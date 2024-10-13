@@ -2,6 +2,7 @@ module.exports = {
     name: "DevTools",
     description: "Enables DevTools, use ctrl+shift+i to open",
     version: "1.0",
+    author: "Bababoiiiii",
     context: "main",
     scope: "own",
     func: () => {
