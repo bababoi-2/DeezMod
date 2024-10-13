@@ -25,7 +25,7 @@ jobs:
       - name: Zip files
         run: |
           mkdir release_files
-          zip -r release_files/source.zip source -x "source/README-md"
+          zip -r release_files/source.zip source/* -x "source/README-md"
       
       - name: Get latest release
         id: get_latest_release
