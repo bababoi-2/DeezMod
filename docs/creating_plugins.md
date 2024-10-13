@@ -16,6 +16,7 @@ module.exports = {
     name: "Name For The Plugin",
     description: "Description for the plugin. At the moment not used.",
     version: "The version of the script",
+    author: "Author of the script",
     context: "The context in which the script should be executed. (main/preload/renderer/titlebar)",
     scope: "The scope which should be used. (own/loader)",
     func: () => {
