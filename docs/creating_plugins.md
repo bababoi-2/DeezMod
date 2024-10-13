@@ -32,6 +32,7 @@ Does it need access to the UI of the app -> renderer/titlebar
 The scope specifies wether the script should run in its own scope or the scope of the script which loaded it.\
 Do you need access to variables from the script in which context your plugin runs in? -> loader\
 Do you only need access to public variables or none at all? -> own
+My rule of thumb is: If you can get away with the scope being "own" then you should do that
 
 ## Developing plugins
 To develop your own plugin, take a look at [the setup](https://github.com/bababoi-2/deezer-desktop-app-injection/blob/main/docs/setup.md)
