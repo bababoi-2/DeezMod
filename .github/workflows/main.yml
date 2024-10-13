@@ -1,5 +1,6 @@
 # note: this was created using chatgpt
 name: Update release on source change
+
 on:
   push:
     paths:
@@ -11,7 +12,9 @@ on:
 jobs:
   create-release:
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: write
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
