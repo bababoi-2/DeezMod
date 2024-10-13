@@ -1,5 +1,5 @@
 # deezer-desktop-app-injection
-A tool/documentation for injecting custom scripts into the deezer desktop app
+A tool/documentation for injecting custom scripts into the deezer desktop app. Built for windows with version 6.0.240.296, altough it is likely to work with newer/older versions.
 > Note: any mention of `%localappdata%\Programs\deezer-desktop\` can be replaced with wherever your deezer installation is located
 
 
