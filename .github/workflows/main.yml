@@ -32,14 +32,14 @@ jobs:
         run: |
           latest_tag=$(git ls-remote --tags origin | awk '{print $2}' | sed 's|refs/tags/||' | sort -V | tail -n1)
           echo "Latest tag: $latest_tag"
-          echo "::set-output name=latest_tag::$latest_tag"
+          echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
 
       - name: Create release
         id: update_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get_latest_release.outputs.latest_tag }}
-          name: 'Release loder files'
+          tag_name: ${{ env.LATEST_TAG }}
+          name: 'Release loader files'
           files: release_files/source.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
