@@ -1,0 +1,34 @@
+# note: this was created using chatgpt
+name: Update Release on source change
+
+on:
+  push:
+    paths:
+      - "source/**"
+      - "!source/README.md"
+    branches:
+      - main
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Zip files
+        run: |
+          mkdir release_files
+          zip -r release_files/source.zip "source/*" -x "source/README-md"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: 'v1.0.${{ github.run_number }}'
+          release_name: 'Automated release ${{ github.run_number }}'
+          files: release_files/source.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
