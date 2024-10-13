@@ -1,4 +1,4 @@
-# deezer-desktop-app-injection
+# DeezMod
 A tool/documentation for injecting custom scripts into the deezer desktop app. Built for windows.
 > Note: any mention of `%localappdata%\Programs\deezer-desktop\` can be replaced with wherever your deezer installation is located
 
