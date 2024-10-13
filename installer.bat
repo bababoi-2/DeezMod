@@ -49,10 +49,12 @@ if errorlevel 1 (
     goto :full_mode
 )
 
+
 :full_mode
 echo.
 echo Full mode
 echo.
+
 echo Testing if dependencies are installed (node/asar)
 cmd /c npm -v >nul 2>nul
 if errorlevel 1 (
@@ -91,31 +93,13 @@ if not exist "%install_path%\%ran_foldername%" (
 
 echo Downloading source files
 echo.
-curl -s -o "%install_path%\%ran_foldername%\build\main.js" https://raw.githubusercontent.com/bababoi-2/deezer-desktop-app-injection/refs/heads/main/source/main.js
-curl -s -o "%install_path%\%ran_foldername%\build\preload.js" https://raw.githubusercontent.com/bababoi-2/deezer-desktop-app-injection/refs/heads/main/source/preload.js
-curl -s -o "%install_path%\%ran_foldername%\build\renderer.js" https://raw.githubusercontent.com/bababoi-2/deezer-desktop-app-injection/refs/heads/main/source/renderer.js
-curl -s -o "%install_path%\%ran_foldername%\build\titlebar.js" https://raw.githubusercontent.com/bababoi-2/deezer-desktop-app-injection/refs/heads/main/source/titlebar.js
-curl -s -o "%install_path%\%ran_foldername%\build\plugin_loader.js" https://raw.githubusercontent.com/bababoi-2/deezer-desktop-app-injection/refs/heads/main/source/plugin_loader.js
-if not exist "%install_path%\%ran_foldername%\build\main.js" (
-    echo Failed to download main.js
-    goto :end
+curl -s -L -o "%install_path%\patched_source.zip" https://github.com/bababoi-2/deezer-desktop-app-injection/releases/latest/download/source.zip
+if not exist "%install_path%\patched_source.zip" (
+    echo Failed to download sources
+	goto :end
 )
-if not exist "%install_path%\%ran_foldername%\build\preload.js" (
-    echo Failed to download preload.js
-    goto :end
-)
-if not exist "%install_path%\%ran_foldername%\build\renderer.js" (
-    echo Failed to download renderer.js
-    goto :end
-)
-if not exist "%install_path%\%ran_foldername%\build\titlebar.js" (
-    echo Failed to download titlebar.js
-    goto :end
-)
-if not exist "%install_path%\%ran_foldername%\build\plugin_loader.js" (
-    echo Failed to download plugin_loader.js
-    goto :end
-)
+echo Unpacking sources
+tar -xf "%install_path%\patched_source.zip" -C %install_path%\%ran_foldername%\build\
 
 echo Repacking app.asar with patched files
 cmd /c asar pack "%install_path%\%ran_foldername%" app.asar
@@ -123,33 +107,53 @@ if errorlevel 1 (
     echo Failed to repack app.asar
 )
 rd /q /s "%install_path%\%ran_foldername%" >nul
-
+del "%install_path%\patched_source.zip" >nul
 goto :create_plugins_folder
+
 
 :normal_mode
 echo.
 echo Downloading prepacked app.asar
 echo.
-curl -s -o "%install_path%\app_patched.asar" https://raw.githubusercontent.com/bababoi-2/deezer-desktop-app-injection/refs/heads/main/packaged/app.asar
-if not exist "%install_path%\app_patched.asar" (
-    echo Failed to download app.asar
+
+curl -s -L -o "%install_path%\app_patched.asar.zip" https://github.com/bababoi-2/deezer-desktop-app-injection/releases/latest/download/app.asar.zip
+if not exist "%install_path%\app_patched.asar.zip" (
+    echo Failed to download app.asar zip
 )
-echo.
-move /Y "%install_path%\app_patched.asar" "%install_path%\app.asar" >nul
+
+echo Extracting app.asar
+tar -xf "%install_path%\app_patched.asar.zip" -C %install_path%
+if errorlevel 1 (
+	echo Failed to extract app.asar zip
+)
+del "%install_path%\app_patched.asar.zip" >nul
 
 goto :create_plugins_folder
 
+
 :create_plugins_folder
 echo.
-if not exist "%install_path%\plugins" (
+if not exist "%install_path%\..\plugins" (
     echo Creating plugins folder
-    md "%install_path%\plugins"
+    md "%install_path%\..\plugins"
 )
 goto :end
 
 :end
+if not "%ran_foldername%"=="" (
+	if exist "%install_path%\%ran_foldername%" (
+		rd /q /s "%install_path%\%ran_foldername%" >nul
+	)
+)
+if exist "%install_path%\app_patched.asar.zip" (
+	del "%install_path%\app_patched.asar.zip" >nul
+)
+if exist "%install_path%\patched_source.zip" (
+	del "%install_path%\patched_source.zip" >nul
+)
+
 set "install_path="
-set "ran_filename="
+set "ran_foldername="
 echo.
 echo Finished, exiting
 echo.
