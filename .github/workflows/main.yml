@@ -26,13 +26,20 @@ jobs:
         run: |
           mkdir release_files
           zip -r release_files/source.zip source -x "source/README-md"
+      
+      - name: Get latest release
+        id: get_latest_release
+        run: |
+          latest_tag=$(git ls-remote --tags origin | awk '{print $2}' | sed 's|refs/tags/||' | sort -V | tail -n1)
+          echo "Latest tag: $latest_tag"
+          echo "::set-output name=latest_tag::$latest_tag"
 
       - name: Create release
-        id: create_release
+        id: update_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: 'v1.0.${{ github.run_number }}'
-          name: 'Automated release ${{ github.run_number }}.'
+          tag_name: ${{ steps.get_latest_release.outputs.latest_tag }}
+          name: 'Release loder files'
           files: release_files/source.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
