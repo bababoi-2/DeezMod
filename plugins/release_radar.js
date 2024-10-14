@@ -3,8 +3,8 @@ module.exports = {
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application",
     version: "1.1.3",
     author: "Bababoiiiii",
-    context: "renderer",
-    scope: "own",
+    context: ["renderer"],
+    scope: ["own"],
     func: () => {
         // Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application
         "use strict";
@@ -992,7 +992,7 @@ module.exports = {
                 cache[user_id].new_releases = [];
                 cache[user_id].last_checked = 0;
                 set_cache(cache);
-                electron.reloadApp();
+                location.reload();
             }
 
             header_wrapper_div.append(header_span, reload_button, settings_button);
@@ -1072,7 +1072,17 @@ module.exports = {
 
             log("Getting user data");
             const user_data = await get_user_data();
-            user_id = localStorage.getItem("ajs_user_id").slice(1, -1);
+
+            const wait_for_user_id = new Promise((resolve) => {
+                const check_for_user_id = setInterval(() => {
+                    user_id = localStorage.getItem("ajs_user_id")?.slice(1, -1);
+                    if (user_id) {
+                        clearInterval(check_for_user_id);
+                        resolve();
+                    }
+                }, 10);    
+            })
+            await wait_for_user_id;
             
             const api_token = user_data.results.checkForm;
 
