@@ -17,8 +17,8 @@ module.exports = {
     description: string,
     version: string,
     author: string,
-    context: array ["main", "preload", "renderer", "titlebar"],
-    scope: array,
+    context: array <"main" | "preload" | "renderer" | "titlebar">,
+    scope: array <"own" | "loader">,
     func: function
 }
 ```
