@@ -32,7 +32,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: 'v1.0.${{ github.run_number }}a'
-          name: 'Release v1.0.${{ github.run_number }}a. Prepacked app.asar supporting plugins. Source for packing manually.'
+          name: 'Release v1.0.${{ github.run_number }}a'
           files: source/source.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
