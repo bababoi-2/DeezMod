@@ -26,19 +26,12 @@ jobs:
         run: |
           cd source/
           zip -r source.zip * -x "README.md"
-      
-      - name: Get latest release
-        id: get_latest_release
-        run: |
-          latest_tag=$(git ls-remote --tags origin | awk '{print $2}' | sed 's|refs/tags/||' | sort -V | tail -n1)
-          echo "Latest tag: $latest_tag"
-          echo "LATEST_TAG=$latest_tag" >> $GITHUB_ENV
 
       - name: Create release
-        id: update_release
+        id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.LATEST_TAG }}
+          tag_name: 'v1.0.${{ github.run_number }}'
           name: 'Release 1.0.0 Alpha'
           files: source/source.zip
         env:
