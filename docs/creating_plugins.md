@@ -19,7 +19,7 @@ module.exports = {
     author: string,
     context: array <"main" | "preload" | "renderer" | "titlebar">,
     scope: array <"own" | "loader">,
-    func: function
+    func: function(context)
 }
 ```
 
@@ -45,6 +45,10 @@ For example: `context = ["main", "preload", "renderer"]  scope = ["own", "loader
     - `"own"` - This can actually be any value except "loader". The script runs in its own scope. You only have access to exposed data. This is enough in most cases.
 
 My rule of thumb is: If you can get away with the scope being "own", then you should do that.
+
+`function` - The function in which the logic of the userscript is.
+- #### Arguments
+    - `context` - The context in which the script got executed in, useful for when you need to execute the script in multiple contexts.
 
 ## Developing plugins
 To develop your own plugin, take a look at [the setup](https://github.com/bababoi-2/deezer-desktop-app-injection/blob/main/docs/setup.md)
