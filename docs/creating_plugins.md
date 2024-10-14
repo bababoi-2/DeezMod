@@ -46,7 +46,7 @@ For example: `context = ["main", "preload", "renderer"]  scope = ["own", "loader
 
 My rule of thumb is: If you can get away with the scope being "own", then you should do that.
 
-`function` - The function in which the logic of the userscript is.
+`func` function - The function in which the logic of the userscript is.
 - #### Arguments
     - `context` - The context in which the script got executed in, useful for when you need to execute the script in multiple contexts.
 
