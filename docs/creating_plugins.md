@@ -13,30 +13,41 @@ A plugin has the following structure
 `plugin.js`
 ```js
 module.exports = {
-    name: "Name For The Plugin",
-    description: "Description for the plugin. At the moment not used.",
-    version: "The version of the script",
-    author: "Author of the script",
-    context: "The context in which the script should be executed. (main/preload/renderer/titlebar)",
-    scope: "The scope which should be used. (own/loader)",
-    func: () => {
-      // the functionality of the plugin
-    }
+    name: string,
+    description: string,
+    version: string,
+    author: string,
+    context: array ["main", "preload", "renderer", "titlebar"],
+    scope: array,
+    func: function
 }
 ```
-### Context
-The context you need depends on the things your script does. It specifies the moment your script gets executed.\
-Does it need node.js functionality or need to change behaviour of the app -> main/preload\
-Does it need access to the UI of the app -> renderer/titlebar
 
-### Scope
-The scope specifies wether the script should run in its own scope or the scope of the script which loaded it.\
-Do you need access to variables from the script in which context your plugin runs in? -> loader\
-Do you only need access to public variables or none at all? -> own\
-My rule of thumb is: If you can get away with the scope being "own" then you should do that
+`name` string - name of The Plugin.
+
+`description` string - description of the plugin. Not used.
+
+`version` string - Version of the plugin. Not used.
+
+`author` string - author of the plugin. Not used.
+
+`context` array - An array of contexts in which the script should be executed in. The order of the array does not influence the order of execution. A context is the script which the plugin is executed in. This influences the permissions of the plugin, which things it has access too etc.
+- #### Possible values
+- `"main"` - Influence the startup behaviour of the application.
+- `"preload"` - Influence both the startup and the runtime behaviour of the application. Is a middleman between main and renderer in some cases (altough specifically for Deezer not really).
+- `"renderer"` - Influence the UI and runtime behaviour of the application. Most userscript ports need the renderer context.
+- `"titlebar"` - Influence the behaviour/UI of the title bar. It runs in its own window so communication between the titlebar and other context can be difficult.
+
+`scope` array - An Array of scopes the contexts should be executed in. The order and length **must** follow the order/length of the context array.\
+For example: `context = ["main", "preload", "renderer"]  scope = ["own", "loader", "own"]` would mean that the script gets executed 1. in the main context with the scope of the plugin, 2. in the preload context with the scope of the preload script and 3. in the renderer context with the scope of the plugin
+- #### Possible values
+    - `"loader"` - The plugin gets executed in the scope of the script it got loaded in (context). You can dynamically modify functions, variables of the script etc.
+    - `"own"` - This can actually be any value except "loader". The script runs in its own scope. You only have access to exposed data. This is enough in most cases.
+
+My rule of thumb is: If you can get away with the scope being "own", then you should do that.
 
 ## Developing plugins
 To develop your own plugin, take a look at [the setup](https://github.com/bababoi-2/deezer-desktop-app-injection/blob/main/docs/setup.md)
 You have complete access to the deezer application so you can do pretty much anything, however there is no streamlined way of doing anything. 
 Take a look at the source code and think of ways to do what you want. 
-If you can't find a way to do it with plugins then you can always just directly edit the code and repackage the asar file.
+If you can't find a way to do it with plugins then you can always just directly edit the code and repackage the asar file or open an issue/pr to request it to be added to the main release.
