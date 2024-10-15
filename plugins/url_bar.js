@@ -80,17 +80,17 @@ module.exports = {
                     pointer-events: all;
                 }
                 .urlbar * {
-                    color: grey;
                     outline: none;
                 }
 
                 .reload-button {
                     margin-right: 5px;
+                    min-width: 25px;
+                    min-height: 25px;
                     border-color: transparent;
                     border-radius: 50%;
                     background: transparent;
-                    min-width: 25px;
-                    min-height: 25px;
+                    color: lightgrey;
                 }
                 .reload-button:hover {
                     background-color: #29282D;
@@ -130,6 +130,7 @@ module.exports = {
                 }
                 .searchbar>label>input {
                     flex-grow: 1;
+                    color: grey;
                 }
                 .searchbar>label {
                     color: lightgrey;
