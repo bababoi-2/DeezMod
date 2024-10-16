@@ -31,7 +31,7 @@ module.exports = {
 
 `author` string - author of the plugin. Not used.
 
-`context` array - An array of contexts in which the script should be executed in. The order of the array does not influence the order of execution. A context is the script which the plugin is executed in. This influences the permissions of the plugin, which things it has access too etc.
+`context` array - An array of contexts in which the script should be executed in. The order of the array does not influence the order of execution. A context is the script which the plugin is executed in. This influences the permissions of the plugin, which things it has access to etc.
 - #### Possible values
 - `"main"` - Influence the startup behaviour of the application.
 - `"preload"` - Influence both the startup and the runtime behaviour of the application. Is a middleman between main and renderer in some cases (altough specifically for Deezer not really).
