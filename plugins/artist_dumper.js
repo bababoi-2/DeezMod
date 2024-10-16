@@ -317,7 +317,7 @@ module.exports = {
                                 "order": config.order === 0 ? "RELEASE_DATE" : "RANK",
                                 "types": types
                             },
-                            "query": "query ArtistDiscographyByType($artistId: String!, $nb: Int!, $roles: [ContributorRoles!]!, $types: [AlbumTypeInput!]!, $subType: AlbumSubTypeInput, $cursor: String, $order: AlbumOrder) {\n  artist(artistId: $artistId) {\n    albums(\n      after: $cursor\n      first: $nb\n      onlyCanonical: true\n      roles: $roles\n      types: $types\n      subType: $subType\n      order: $order\n    ) {\n      edges {\n        node {\n          ...AlbumBase\n        }\n      }\n      pageInfo {\n        hasNextPage\n        endCursor\n      }\n    }\n  }\n}\n\nfragment AlbumBase on Album {\n  id\n  displayTitle\n}"
+                            "query": "query ArtistDiscographyByType($artistId: String!, $nb: Int!, $roles: [ContributorRoles!]!, $types: [AlbumTypeInput!]!, $subType: AlbumSubTypeInput, $mode: DiscographyMode, $cursor: String, $order: AlbumOrder) {\n  artist(artistId: $artistId) {\n    albums(\n      after: $cursor\n      first: $nb\n      onlyCanonical: true\n      roles: $roles\n      types: $types\n      subType: $subType\n      mode: $mode\n      order: $order\n    ) {\n      edges {\n        node {\n          ...AlbumBase\n        }\n      }\n      pageInfo {\n        hasNextPage\n        endCursor\n      }\n    }\n  }\n}\n\nfragment AlbumBase on Album {\n  id\n  displayTitle\n}"
                         }),
                         "method": "POST",
                     });
