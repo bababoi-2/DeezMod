@@ -84,7 +84,7 @@ module.exports = {
                         "types": ["EP", "SINGLES", "ALBUM"]
                     }, // for the query below: we only include the information needed for the featured songs functionality IF it is toggled on as we dont want to spam the api even more than we currently do
                     "query": `
-                        query ArtistDiscographyByType($artistId: String!, $nb: Int!, $roles: [ContributorRoles!]!, $types: [AlbumTypeInput!]!, $subType: AlbumSubTypeInput, $cursor: String, $order: AlbumOrder) {
+                        query ArtistDiscographyByType($artistId: String!, $nb: Int!, $roles: [ContributorRoles!]!, $types: [AlbumTypeInput!]!, $subType: AlbumSubTypeInput, $mode: DiscographyMode, $cursor: String, $order: AlbumOrder) {
                         artist(artistId: $artistId) {
                             albums(
                             after: $cursor
@@ -93,6 +93,7 @@ module.exports = {
                             roles: $roles
                             types: $types
                             subType: $subType
+                            mode: $mode
                             order: $order
                             ) {
                             edges {
