@@ -11,7 +11,7 @@ It is generally recommended to always build from source to have the most up to d
 3. Follow instructions of the installer
 
 ### Easy manual way
-1. Download the [app.asar](https://github.com/bababoi-2/deezer-desktop-app-injection/raw/refs/heads/main/packaged/app.asar) and replace `%localappdata%\Programs\deezer-desktop\resources\app.asar`
+1. Download the [app.asar](https://github.com/bababoi-2/DeezMod/releases/latest/download/app.asar.zip) and replace `%localappdata%\Programs\deezer-desktop\resources\app.asar`
 2. Create the plugins folder in `%localappdata%\Programs\deezer-desktop\` and place your plugins inside
 
 ### Full manual way
