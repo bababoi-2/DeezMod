@@ -1,6 +1,6 @@
 # DeezMod
 A tool/documentation for injecting custom scripts into the deezer desktop app. Built for windows.
-> Note: any mention of `%localappdata%\Programs\deezer-desktop\` can be replaced with wherever your deezer installation is located
+> Note: any mention of `%localappdata%\Programs\deezer-desktop\` can be replaced with wherever your deezer installation is located. If you used the microsoft store, the installation can be more difficult.
 
 ## Setup
 It is generally recommended to always build from source to have the most up to date version (Full Mode in installer)
