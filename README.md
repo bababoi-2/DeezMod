@@ -6,6 +6,7 @@ A tool/documentation for injecting custom scripts into the deezer desktop app. B
 It is generally recommended to always build from source to have the most up to date version (Full Mode in installer)
 
 ### Installer (Automatic, normal/full way)
+The full automatic way downloads the source files and repackes your Deezer application from the source. This ensures that you have the most up to date version.
 1. Download the [installer](https://raw.githubusercontent.com/bababoi-2/deezer-desktop-app-injection/refs/heads/main/installer.bat)
 2. Place it right besides the app.asar in `%localappdata%\Programs\deezer-desktop\resources`
 3. Follow instructions of the installer
