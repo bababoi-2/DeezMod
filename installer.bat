@@ -93,7 +93,7 @@ if not exist "%install_path%\%ran_foldername%" (
 
 echo Downloading source files
 echo.
-curl -s -L -o "%install_path%\patched_source.zip" https://github.com/bababoi-2/deezer-desktop-app-injection/releases/latest/download/source.zip
+curl -s -L -o "%install_path%\patched_source.zip" https://github.com/bababoi-2/deezer-desktop-app-injection/releases/latest/download/patched_source.zip
 if not exist "%install_path%\patched_source.zip" (
     echo Failed to download sources
 	goto :end
