@@ -1,4 +1,4 @@
-# note: this was created using chatgpt
+# note: this was created with the help of chatgpt
 name: Update release on source change
 
 on:
@@ -38,7 +38,7 @@ jobs:
         run: |
           zip app.asar.zip app.asar
           cd source/build/
-          zip ../../patch.zip main.js preload.js plugin_loader.js renderer.js titlebar.js
+          zip ../../patched_source.zip main.js preload.js plugin_loader.js renderer.js titlebar.js
 
       - name: Create release
         id: create_release
