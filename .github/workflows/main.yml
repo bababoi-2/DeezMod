@@ -37,7 +37,7 @@ jobs:
 
       - name: Create ASAR package
         run: |
-          asar pack ./source ./app.asar --exclude 'node_modules' --exclude '.git'
+          asar pack ./source app.asar
       
       - name: Zip files
         run: |
