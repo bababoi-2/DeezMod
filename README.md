@@ -1,8 +1,3 @@
-17.10.2024 21:00:
-Seems like i broke something. Investigating.
-17.10.2024 21:01:
-Fixed it i believe
-
 # DeezMod
 A tool/documentation for injecting custom scripts into the deezer desktop app. Built for windows.
 
