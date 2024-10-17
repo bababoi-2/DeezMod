@@ -99,8 +99,7 @@ if not exist "%install_path%\patched_source.zip" (
 	goto :end
 )
 echo Unpacking sources
-tar -xf "%install_path%\patched_source.zip" -C %install_path%\%ran_foldername%\build\
-
+tar -xf "%install_path%\patched_source.zip" -C "%install_path%\%ran_foldername%\build"
 echo Repacking app.asar with patched files
 cmd /c asar pack "%install_path%\%ran_foldername%" "%install_path%\app.asar"
 if errorlevel 1 (
@@ -122,7 +121,8 @@ if not exist "%install_path%\app_patched.asar.zip" (
 )
 
 echo Extracting app.asar
-tar -xf "%install_path%\app_patched.asar.zip" -C %install_path%
+pause
+tar -xf "%install_path%\app_patched.asar.zip" -C "%install_path%"
 if errorlevel 1 (
 	echo Failed to extract app.asar zip
 )
