@@ -1,0 +1,56 @@
+# note: this was created using chatgpt
+name: Update release on source change
+
+on:
+  push:
+    paths:
+      - "source/**"
+      - "!source/README.md"
+    branches:
+      - main
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            source
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install ASAR
+        run: npm install -g --engine-strict @electron/asar
+
+      - name: Create ASAR package
+        run: |
+          asar pack ./source ./app.asar --exclude 'node_modules' --exclude '.git'
+      
+      - name: Zip files
+        run: |
+          zip app.asar.zip app.asar
+          cd source/build/
+          zip ../../patch.zip main.js preload.js .plugin_loader.js renderer.js titlebar.js
+
+      - name: Create release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: 'v1.0.${{ github.run_number }}a'
+          name: 'Release v1.0.${{ github.run_number }}a'
+          files: |
+            ./app.asar.zip
+            ./patch.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
