@@ -1,8 +1,12 @@
 # DeezMod
 A tool/documentation for injecting custom scripts into the deezer desktop app. Built for windows.
-> Note: any mention of `%localappdata%\Programs\deezer-desktop\` can be replaced with wherever your deezer installation is located. If you used the microsoft store, the installation can be more difficult.
+
+If you used the microsoft store to install Deezer, the installation can more difficult. The files are then usually located at `C:\Program Files\WindowsApps\Deezer.62021768415AF_VERSION_x86__q7m17pa7q8kj0\app\resources`. To gain access to this folder you must give Administrators full access to the `C:\Program Files\WindowsApps\` folder and apply these permission recursively. You can follow this [tutorial](https://forums.flightsimulator.com/t/take-ownership-of-the-windows-apps-folders/388969). Once you've done that, launch the installer (if you use it) as Administrator.
+
+
 
 ## Setup
+> Note: any mention of `%localappdata%\Programs\deezer-desktop\` can be replaced with wherever your deezer installation is located.
 It is generally recommended to always build from source to have the most up to date version (Full Mode in installer)
 
 ### Installer (Automatic, normal/full way)
