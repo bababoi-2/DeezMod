@@ -22,10 +22,23 @@ jobs:
           sparse-checkout: |
             source
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          
+      - name: Install ASAR
+        run: npm install -g --engine-strict @electron/asar
+
+      - name: Create ASAR package
+        run: |
+          asar pack ./source app.asar
+      
       - name: Zip files
         run: |
-          cd source/
-          zip -r source.zip * -x "README.md"
+          zip app.asar.zip app.asar
+          cd source/build/
+          zip ../../patched_source.zip main.js preload.js plugin_loader.js renderer.js titlebar.js
 
       - name: Create release
         id: create_release
@@ -33,7 +46,8 @@ jobs:
         with:
           tag_name: 'v1.0.${{ github.run_number }}a'
           name: 'Release v1.0.${{ github.run_number }}a'
-          files: source/source.zip
+          files: |
+            ./app.asar.zip
+            ./patch.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
