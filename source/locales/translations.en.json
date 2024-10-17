@@ -46,6 +46,6 @@
 	"menu_help_label": "Help",
 	"menu_title_opendeezer_electron": "Open Deezer",
 	"errormessage_title_youseemtobeoffline_electron": "You seem to be offline",
-	"errormessage_text_cantloadpagereconnecttryagain_electron": "Sorry, we can't load this page while you're not connected to the internet. Please reconnect and try again.",
+	"errormessage_text_cantloadpagereconnecttryagain_electron": "Sorry, we can't load this page while you're not connected to the internet. Please reconnect and try again. :C",
 	"generic_action_retry_electron": "Retry"
 }

@@ -48,6 +48,6 @@ jobs:
           name: 'Release v1.0.${{ github.run_number }}a'
           files: |
             ./app.asar.zip
-            ./patch.zip
+            ./patched_source.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
