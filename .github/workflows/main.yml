@@ -43,7 +43,7 @@ jobs:
         run: |
           zip app.asar.zip app.asar
           cd source/build/
-          zip ../../patch.zip main.js preload.js .plugin_loader.js renderer.js titlebar.js
+          zip ../../patch.zip main.js preload.js plugin_loader.js renderer.js titlebar.js
 
       - name: Create release
         id: create_release
