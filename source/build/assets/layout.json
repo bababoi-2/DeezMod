@@ -1,0 +1,126 @@
+{
+	"default": {
+		"js": ["runtime", "legacy", "app-web"],
+		"css": ["bootstrap", "deezer"]
+	},
+
+	"react_naked": {
+		"js": ["runtime", "legacy", "app-web"],
+		"css": ["app-web"]
+	},
+
+	"electron": {
+		"js": ["runtime", "legacy", "app-web"],
+		"css": ["app-web", "electron"]
+	},
+
+	"modal": {
+		"js": ["runtime", "legacy", "app-web"],
+		"css": ["bootstrap", "deezer"]
+	},
+
+	"modal_standalone": {
+		"js": ["runtime", "legacy", "app-web"],
+		"css": ["bootstrap", "deezer"]
+	},
+
+	"app-connect": {
+		"js": ["runtime", "legacy", "app-connect"],
+		"css": ["bootstrap", "deezer"]
+	},
+
+	"oauth-msisdn": {
+		"js": ["runtime", "legacy", "app-connect-phone-activation"],
+		"css": ["bootstrap", "deezer"]
+	},
+
+	"chromecast_v5": {
+		"js": ["app-chromecast-version5"],
+		"css": ["app-chromecast-version5"]
+	},
+
+	"discover": {
+		"js": ["runtime", "legacy", "app-web"],
+		"css": ["bootstrap", "deezer"]
+	},
+
+	"naboo": {
+		"js": ["runtime", "legacy", "app-web"],
+		"css": ["app-web"]
+	},
+
+	"backstage": {
+		"js": ["runtime", "legacy", "app-backstage"],
+		"css": ["app-backstage", "bootstrap-tempo"]
+	},
+
+	"developers_template": {
+		"js": ["runtime", "legacy", "app-developers"],
+		"css": ["app-developers"]
+	},
+
+	"paywall": {
+		"js": ["app-paywall"],
+		"css": ["app-paywall"]
+	},
+
+	"discovery": {
+		"js": ["app-discovery"],
+		"css": []
+	},
+
+	"webview": {
+		"js": [],
+		"css": []
+	},
+
+	"naked": {
+		"js": [],
+		"css": []
+	},
+
+	"desktoplogin/result": {
+		"js": [],
+		"css": []
+	},
+
+	"main": {
+		"js": [],
+		"css": []
+	},
+
+	"login": {
+		"js": [],
+		"css": []
+	},
+
+	"bootstrap": {
+		"js": [],
+		"css": []
+	},
+
+	"empty": {
+		"js": [],
+		"css": []
+	},
+
+	"bootstrap_minimal": {
+		"js": [],
+		"css": []
+	},
+
+	"metadatas": {
+		"js": [],
+		"css": []
+	},
+
+	"error": {
+		"js": [],
+		"css": ["bootstrap-tempo", "bootstrap"]
+	},
+
+	"unlogged": {
+		"js": [],
+		"css": ["bootstrap-tempo"]
+	}
+}

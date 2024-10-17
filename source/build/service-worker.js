@@ -1,0 +1,1 @@
+importScripts('./assets/cache/js/service-worker.js');
