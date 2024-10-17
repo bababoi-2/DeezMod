@@ -1,39 +1,61 @@
 module.exports = {
-    name: "Lists ALL releases at the artist page. Does not",
-    description: "Adds the feature to add all songs by an artist to a playlist. Port of https://github.com/bababoi-2/Deezer-Artist-Dumper",
-    version: "1.4.6",
+    name: "List All Releases",
+    description: "Lists ALL releases at the artist page, not just hand picked ones by deezer.",
+    version: "1.0.0",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["own"],
     func: () => {
-        orig_fetch = window.fetch;
+        function log(...args) {
+            console.log("[Display All Songs]", ...args);
+        }
+
+        const orig_fetch = window.fetch;
         
         window.history.pushState = new Proxy(window.history.pushState, {
             apply: (target, thisArg, argArray) => {
-                artist_main();
+                if (location.hash.includes("/artist/")) {
+                    artist_main();
+                } else {
+                    log("Unhooking");
+                    window.fetch = orig_fetch;
+                }
                 return target.apply(thisArg, argArray);
             },
         });
         window.addEventListener("popstate", (e) => {
-            artist_main();
+            if (location.hash.includes("/artist/")) {
+                artist_main();
+            } else {
+                log("Unhooking");
+                window.fetch = orig_fetch;
+            }
         });
 
         if (location.hash.includes("/artist/")) {
             artist_main();
         }
 
-        function patch_fetch(...args) {
-            if (args[0] !== "https://pipe.deezer.com/api") {
-                return args;
-            }
-            if (true) {}
-        }
-
         async function artist_main() {
-            window.fetch = (...args) => {
-                args = patch_fetch(args);
-                return orig_fetch(...args);
+            if (window.fetch != orig_fetch) { // already patched bc last page was artist
+                return;
+            }
 
+            log("Hooking fetch");
+
+            window.fetch = (...args) => {
+                console.log(args);
+                if (args.length !== 2 || args[0] !== "https://pipe.deezer.com/api" || args[1].method !== "POST") {
+                    return orig_fetch(...args);
+                }
+                
+                const operation_name = args[1].body.match(/"operationName":\s*"(.*?)"/)
+                if (operation_name && operation_name[1] === "ArtistDiscographyByType") {
+                    args[1].body = args[1].body.replace(/"subType":\s*"(.*?)"/, '"subType": null')
+                                               .replace(/"mode":\s*"(.*?)"/, '"mode": "ALL"');
+                }
+                
+                return orig_fetch(...args);
             }
         
         }
