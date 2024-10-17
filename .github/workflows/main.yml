@@ -27,11 +27,6 @@ jobs:
         with:
           node-version: '18'
           
-      - name: Install dependencies
-        run: | 
-          cd source/
-          npm install
-
       - name: Install ASAR
         run: npm install -g --engine-strict @electron/asar
 
