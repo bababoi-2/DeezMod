@@ -26,7 +26,7 @@ module.exports = {
             if (args[0] !== "https://pipe.deezer.com/api") {
                 return args;
             }
-            if ()
+            if (true) {}
         }
 
         async function artist_main() {
