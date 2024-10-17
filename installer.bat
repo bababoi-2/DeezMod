@@ -121,8 +121,7 @@ if not exist "%install_path%\app_patched.asar.zip" (
 )
 
 echo Extracting app.asar
-pause
-tar -xf "%install_path%\app_patched.asar.zip" -C "%install_path%"
+tar -xf "%install_path%\app_patched.asar.zip" -C "%install_path%\"
 if errorlevel 1 (
 	echo Failed to extract app.asar zip
 )
