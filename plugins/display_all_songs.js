@@ -44,7 +44,6 @@ module.exports = {
             log("Hooking fetch");
 
             window.fetch = (...args) => {
-                console.log(args);
                 if (args.length !== 2 || args[0] !== "https://pipe.deezer.com/api" || args[1].method !== "POST") {
                     return orig_fetch(...args);
                 }
