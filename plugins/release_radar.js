@@ -225,7 +225,7 @@ module.exports = {
                 await Promise.all(batch_promises);
             }
 
-            const batch_size = 10;
+            const batch_size = config.simultaneous_artists;
             for (let i = 0; i < artist_ids.length; i += batch_size) {
                 const batch_artist_ids = artist_ids.slice(i, i + batch_size);
                 await process_artist_batch(batch_artist_ids);
@@ -328,7 +328,7 @@ module.exports = {
                 });
                 await Promise.all(promises);
             }
-            const batch_size = 10;
+            const batch_size = config.simultaneous_artists;
             for (let i = 0; i < new_releases.length; i += batch_size) {
                 const batch = new_releases.slice(i, i + batch_size);
                 await process_batch(batch);
@@ -424,7 +424,7 @@ module.exports = {
             // patch structure
             // [from, to, ?value]
                 // if both "from" and "to" exist, we change the path from "from" to "to"
-                // if "from" is null, "value" is required as we add the key and set the value to "value"
+                // if "from" is null, "value" is required as we create/update the key and set the value to "value"
                 // if "to" is null, we delete the key
             const patches = [
                 [
@@ -442,25 +442,33 @@ module.exports = {
                         upcoming_releases: 0
                     }],
                     ["include_features", "types.features"],
+                ],
+                [
+                    [null, "simultaneous_artists", 10]
                 ]
             ]
 
-            const patch = patches[config.config_version] ?? patches[0];
-            patch.forEach(([from, to, value]) => {
-                if (from && to) {
-                    move_key(config, from, to);
-                } else if (!from && to) {
-                    set_key(config, to, value);
-                } else if (from && !to) {
-                    delete_key(config, from);
+            const old_cfg_version = config.config_version === undefined ? -1 : config.config_version;
+            for (let patch = old_cfg_version+1; patch <= CURRENT_CONFIG_VERSION; patch++) {
+                if (patch != 0) {
+                    config.config_version++;
                 }
-            });
-
+                patches[patch].forEach(([from, to, value]) => {
+                    if (from && to) {
+                        move_key(config, from, to);
+                    } else if (!from && to) {
+                        set_key(config, to, value);
+                    } else if (from && !to) {
+                        delete_key(config, from);
+                    }
+                });
+                log("Migrated to version", patch);
+            }
             return config;
         }
 
         function get_config() {
-            const CURRENT_CONFIG_VERSION = 0;
+            const CURRENT_CONFIG_VERSION = 1;
 
             let config = localStorage.getItem("release_radar_config");
             if (config) {
@@ -476,6 +484,7 @@ module.exports = {
             log("No config found, creating new");
             return { // base default config
                 config_version: CURRENT_CONFIG_VERSION,
+                simultaneous_artists: 10,
                 max_song_count: 30,
                 max_song_age: 30,
                 open_in_app: false,
@@ -739,6 +748,7 @@ module.exports = {
             border: 1px var(--tempo-colors-border-neutral-primary-default) solid;
             border-radius: var(--tempo-radii-s);
             padding: 0px 5px;
+            flex-grow: 1;
         }
         .release_radar_main_div_header_div > div > label > textarea {
             height: 75px;
@@ -1394,6 +1404,15 @@ module.exports = {
                         config.types, "upcoming_releases",
                         "span 2"
                     )).dropdown_setting(["Normal", "Seperate", "Hide"])
+                );
+
+                settings_wrapper.appendChild(
+                    (new Setting(
+                        "Parallelism",
+                        "How many artists are handled simultaneously. This has a high impact on the speed of fetching the releases. If you get ratelimited or frequent errors occur, turn this down.",
+                        config, "simultaneous_artists",
+                        "span 2"
+                    )).number_setting()
                 );
 
                 settings_wrapper.appendChild(
