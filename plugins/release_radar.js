@@ -1,7 +1,7 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application",
-    version: "1.2.2",
+    version: "1.2.3",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["own"],
@@ -161,6 +161,11 @@ module.exports = {
 
             async function process_artist_batch(batch_artist_ids) {
                 const batch_promises = batch_artist_ids.map(async (artist_id) => {
+                    if (config.filters.contributor_id.includes(artist_id)) {
+                        log("Completely skipping artist", artist_id);
+                        return;
+                    }
+
                     let [releases, next_page, cursor] = [null, true, null];
 
                     while (next_page) {
