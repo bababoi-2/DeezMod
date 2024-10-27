@@ -29,6 +29,9 @@ Place plugins inside of `%localappdata%\Programs\deezer-desktop\plugins`. They n
 Userscripts can be pretty easily ported to the desktop app if they are not too reliant on the functions of the userscript managers.\
 See example plugins [here](https://github.com/bababoi-2/deezer-desktop-app-injection/tree/main/plugins)
 
+## Update Warning
+When updating Deezer by manually downloading the installer, everything gets completely wiped (obviously the mod, but also all plugins). So back up your plugins before doing this.
+
 ## Latest officially supported version
 `6.0.240.296`
 > Likely to work with newer/older versions
