@@ -1540,7 +1540,7 @@ module.exports = {
             main_btn.onclick = () => {
                 const is_closed = wrapper_div.classList.toggle("hide");
                 if (!is_closed) {
-                    if (cache[user_id].last_checked && cache[user_id.last_checked !== 0]) {
+                    if (cache[user_id].last_checked && cache[user_id.last_checked] !== 0) {
                         last_checked_span.textContent = `Last Update - ${time_ago(cache[user_id].last_checked)}`;
                     } else {
                         last_checked_span.textContent = "Currently updating...";
