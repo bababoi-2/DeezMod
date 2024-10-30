@@ -265,7 +265,7 @@ module.exports = {
             return new_releases.slice(0, config.max_song_count);
         }
 
-        async function get_all_songs_from_albumw(album_id, api_token) {
+        async function get_all_songs_from_album(album_id, api_token) {
                 const r = await fetch("https://www.deezer.com/ajax/gw-light.php?method=song.getListByAlbum&input=3&api_version=1.0&api_token="+api_token, {
                     "body": JSON.stringify({
                         "alb_id": album_id,
