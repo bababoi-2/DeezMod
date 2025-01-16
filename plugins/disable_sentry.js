@@ -6,12 +6,19 @@ module.exports = {
     context: ["preload"],
     scope: ["own"],
     func: () => {
-        console.log("Sentry Plugin Loaded");
+        function log(...args) {
+            console.log("[Disable Sentry]", ...args);
+        }
+        log("Sentry Plugin Loaded");
         const wait_for_sentry = setInterval(() => {
-            if (window.__SENTRY__) {
+            if (window.__SENTRY__?.version) {
                 clearInterval(wait_for_sentry);
                 window.__SENTRY__ = null;
-                console.log("Sentry disabled");
+                log("Sentry disabled");
+            }
+            if (window.__SENTRY__) {
+                window.__SENTRY__ = null;
+                log("Tried disabling initializing Sentry");
             }
         }, 10);
     }

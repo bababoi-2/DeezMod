@@ -585,34 +585,22 @@ module.exports = {
             if (difference < milliseconds_in_a_minute) {
                 time_ago = Math.floor(difference / milliseconds_in_a_second);
                 unit = "second";
-            }
-
-            else if (difference < milliseconds_in_an_hour) {
+            } else if (difference < milliseconds_in_an_hour) {
                 time_ago = Math.floor(difference / milliseconds_in_a_minute);
                 unit = "minute";
-            }
-
-            else if (difference < milliseconds_in_a_day) {
+            } else if (difference < milliseconds_in_a_day) {
                 time_ago = Math.floor(difference / milliseconds_in_an_hour);
                 unit = "hour";
-            }
-
-            else if (difference < milliseconds_in_a_week) {
+            } else if (difference < milliseconds_in_a_week) {
                 time_ago = Math.floor(difference / milliseconds_in_a_day);
                 unit = "day";
-            }
-
-            else if (difference < milliseconds_in_a_month) {
+            } else if (difference < milliseconds_in_a_month) {
                 time_ago = Math.floor(difference / milliseconds_in_a_week);
                 unit = "week";
-            }
-
-            else if (difference < milliseconds_in_a_year) {
+            } else if (difference < milliseconds_in_a_year) {
                 time_ago = Math.floor(difference / milliseconds_in_a_month);
                 unit = "month";
-            }
-
-            else {
+            } else {
                 time_ago = Math.floor(difference / milliseconds_in_a_year);
                 unit = "year";
             }
@@ -826,13 +814,13 @@ module.exports = {
             position: relative;
             min-height: 32px;
             padding: 18px 16px 8px;
-            border-bottom: 1px solid var(--tempo-colors-divider-main);
+            border-bottom: 1px solid var(--tempo-colors-divider-neutral-primary-default);
             transition-duration: .15s;
             transition-property: background-color, color;
             width: 100%;
         }
         .release_radar_release_li:hover {
-            background-color: var(--tempo-colors-bg-contrast);
+            background-color: var(--tempo-colors-background-neutral-secondary-hovered);
         }
         .release_radar_release_li>div {
             display: inline-flex;

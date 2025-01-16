@@ -132,7 +132,7 @@ module.exports = {
             text-align: left;
         }
         .artist_dumper_playlist_ul button:hover {
-            background-color: var(--tempo-colors-bg-contrast);
+            background-color: var(--tempo-colors-background-neutral-secondary-hovered);
         }
         .artist_dumper_playlist_ul button[selected=""] {
             background-color: #463554a1;
@@ -1355,17 +1355,7 @@ module.exports = {
                 Artdump_log.console("Not logged in");
             }
 
-            const wait_for_user_id = new Promise((resolve) => {
-                const check_for_user_id = setInterval(() => {
-                    user_id = localStorage.getItem("ajs_user_id")?.slice(1, -1);
-                    if (user_id) {
-                        clearInterval(check_for_user_id);
-                        resolve();
-                    }
-                }, 10);    
-            })
-            await wait_for_user_id;
-
+            user_id = user_data.results.USER.USER_ID;
 
             let main_ul = document.querySelector("#page_naboo_artist > div.container > div > ul[role='group']");
             if (main_ul) {

@@ -1,6 +1,6 @@
 {
   "name": "deezer-desktop",
-  "version": "6.0.220",
+  "version": "7.0.1",
   "private": true,
   "description": "The official Deezer Desktop application built with Electron",
   "homepage": "https://www.deezer.com",
@@ -12,8 +12,9 @@
   "author": "Deezer <support@deezer.com>",
   "main": "build/main.js",
   "dependencies": {
+    "@electron/remote": "2.1.2",
     "electron-log": "^5.1.2",
-    "electron-settings": "^4.0.3",
+    "electron-settings": "4.0.4",
     "electron-updater": "^6.1.8",
     "eventemitter2": "^6.4.9",
     "i18next": "^23.11.2",
@@ -21,6 +22,7 @@
     "i18next-sprintf-postprocessor": "^0.2.2",
     "inversify": "^6.0.2",
     "isomorphic-fetch": "^3.0.0",
+    "js-yaml": "3.13.1",
     "lodash.debounce": "^4.0.8",
     "lodash.get": "^4.4.2",
     "macos-version": "^5.2.1",
