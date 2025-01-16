@@ -17,7 +17,7 @@ module.exports = {
 
         const storedOriginalVolumes = new WeakMap();
         const { get, set } = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'volume');
-s
+
         Object.defineProperty(HTMLMediaElement.prototype, 'volume', {
             get() {
                 const lowVolume = get.call(this);
