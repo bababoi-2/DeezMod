@@ -1,6 +1,9 @@
 # Helper scripts
-*.bat
+minify.bat
+pack.bat
+run.bat
+*ect.bat
 
 
 # plugins I don't use (I have a symlink to the git folder so every plugin is included for me)
-./plugins/exponential_volume.js
+/plugins/exponential_volume.js
