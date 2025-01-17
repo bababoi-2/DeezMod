@@ -21,3 +21,6 @@ A script allowing you to view all releases by an artist, not just the ones deeze
 
 ### Exponential Volume
 Changes the volume control to increase exponentially, allowing for more precise lower values. Probably very easy to adapt to increase the maximum volume. Port of [this](https://greasyfork.org/en/scripts/487324-youtube-volume-fixer) userscript. Note: Not tested by me.
+
+### Toggle Features
+A plugin to toggle various features in the desktop application, for example gapless playback. Very experimental plugin, I've tested basically 0 features, so only change features if you are sure what you are doing. By default gapless playback is enabled.

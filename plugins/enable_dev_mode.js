@@ -6,8 +6,12 @@ module.exports = {
     context: ["main"],
     scope: ["own"],
     func: () => {
-        console.log("Dev Mode Plugin Loaded");
+        function log(...args) {
+            console.log("[DevMode]", ...args);
+        }
+
+        log("Dev Mode Plugin Loaded");
         process.env.DZ_DEVTOOLS = "yes";
-        console.log("Dev Mode enabled");
+        log("Dev Mode enabled");
     }
 }
