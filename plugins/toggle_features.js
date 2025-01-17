@@ -1,8 +1,6 @@
-const { features } = require("process");
-
 module.exports = {
     name: "Toggle Features",
-    description: "Enable or disable features which may or may not experimental/web version only.",
+    description: "Enable or disable features which may or may not be experimental/web version only.",
     version: "1.0",
     author: "Bababoiiiii",
     context: ["renderer"],
