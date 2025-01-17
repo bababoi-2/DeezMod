@@ -722,7 +722,7 @@ module.exports = {
             font-weight: var(--tempo-fontWeights-heading-m);
             font-size: var(--tempo-fontSizes-heading-m);
             line-height: var(--tempo-lineHeights-heading-m);
-            border-bottom: 1px solid var(--tempo-colors-divider-main);
+            border-bottom: 1px solid var(--tempo-colors-border-neutral-primary-default);
         }
         .release_radar_main_div_header_div > span {
             cursor: default;
