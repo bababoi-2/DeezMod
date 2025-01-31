@@ -1,7 +1,7 @@
 module.exports = {
     name: "Artist Dumper",
     description: "Adds the feature to add all songs by an artist to a playlist. Port of https://github.com/bababoi-2/Deezer-Artist-Dumper",
-    version: "1.4.6",
+    version: "1.4.7",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["own"],
@@ -279,7 +279,7 @@ module.exports = {
                 min_length: 60,
                 regexes: [
                     {
-                        str: String.raw`(\(|- )(((super )?slowed(( *&| *\+| *,) *reverb)?)|(sped up)|(reverb)|(8d audio)|(speed))( version)?\)? *$`, // https://regex101.com/r/cU3ajr/1
+                        str: String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`, // https://regex101.com/r/cU3ajr/1
                         flags: "i",
                         type: 0, // 0 = blacklist, 1 = whitelist
                         for_artist: "-1", // -1 = every artist, any other number is artist id
