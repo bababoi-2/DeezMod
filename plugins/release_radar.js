@@ -1,12 +1,17 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application",
-    version: "1.2.3-dev",
+    version: "1.2.5",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["own"],
     func: () => {
         // Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application
+        // TODO:
+        // add to x playlist if from y artist
+        // better debug logging
+        // restructure to use more OOP (avoid globals etc)
+
         "use strict";
 
         const DEBUG_MODE = true;
@@ -38,6 +43,55 @@ module.exports = {
             return resp;
         }
 
+        let first_safe_fetch_call = null;
+        let wait_for_first_call_resolver;
+        async function safe_fetch(url, ...args) {
+            if (!first_safe_fetch_call) {
+                // this is a huge race condition, but I won't fix it in a good way. I just set this variable asap and hope its quick enough.
+                first_safe_fetch_call = new Promise((resolve) => (wait_for_first_call_resolver = resolve));
+                debug("First safe fetch call");
+            } else {
+                debug("Awaiting first safe fetch call");
+                await first_safe_fetch_call;
+            }
+
+            if (user_data.currently_renewing_api_token) {
+                log("API token is currently being renewed, waiting");
+                await user_data.currently_renewing_api_token;
+            }
+            const r = await fetch(url+user_data.api_token, ...args);
+            let r_to_be_returned = r.clone();
+
+            const resp = await r.json();
+            
+            if (resp.error?.VALID_TOKEN_REQUIRED) {
+                if (!user_data.currently_renewing_api_token) { 
+                    user_data.currently_renewing_api_token = (async () => {
+                        log("API Token invalid, renewing");
+                        const user_data_tmp = await get_user_data();
+                        user_data.api_token = user_data_tmp.results.checkForm;
+                        user_data.currently_renewing_api_token = null;
+                    })();
+                } else {
+                    log("API token was invalid, but another request is already renewing it, waiting");
+                    await user_data.currently_renewing_api_token;
+                }
+
+                if (first_safe_fetch_call) { // if the token was invalid, but we renewed it, we can let the other requests go through before finishing this one
+                    wait_for_first_call_resolver();
+                }
+
+                r_to_be_returned = safe_fetch(url, ...args);
+            
+            } else {
+                if (first_safe_fetch_call) { // if the token was valid, we can let the other requests go through
+                    wait_for_first_call_resolver();
+                }
+            }
+
+            return r_to_be_returned;
+        }
+
         async function get_auth_token() {
             const r = await fetch("https://auth.deezer.com/login/renew?jo=p&rto=c&i=c", {
                 "method": "POST",
@@ -47,12 +101,12 @@ module.exports = {
             return resp.jwt;
         }
 
-        function get_all_followed_artists(user_id) {
+        function get_all_followed_artists() {
             // we use _order since that returns a list and not a json object.
             // we sort the songs by release date anyways so the order of the artist does not matter
             return new Promise((resolve, reject) => {
                 const wait_for_localstorage_data = setInterval(() => {
-                    let artists = localStorage.getItem("favorites_artist_order_" + user_id);
+                    let artists = localStorage.getItem("favorites_artist_order_" + user_data.user_id);
                     if (artists) {
                         clearInterval(wait_for_localstorage_data);
                         resolve(JSON.parse(artists));
@@ -61,8 +115,8 @@ module.exports = {
         });
         }
 
-        async function get_amount_of_songs_of_album(api_token, album_id) {
-            const r = await fetch("https://www.deezer.com/ajax/gw-light.php?method=song.getListByAlbum&input=3&api_version=1.0&api_token="+api_token, {
+        async function get_amount_of_songs_in_album(album_id) {
+            const r = await safe_fetch("https://www.deezer.com/ajax/gw-light.php?method=song.getListByAlbum&input=3&api_version=1.0&api_token=", {
                 "body": `{\"alb_id\":\"${album_id}\",\"start\":0,\"nb\":0}`,
                 "method": "POST",
                 "credentials": "include"
@@ -89,9 +143,9 @@ module.exports = {
                     "operationName": "ArtistDiscographyByType",
                     "variables": {
                         "artistId": artist_id,
-                        "nb": Math.floor(config.max_song_age/5), // 1 release every 5 days to try to get as little songs as possible, but also try to avoid multiple requests
+                        "nb": Math.max(2, Math.floor(config.max_song_age/4)), // 1 release every 4 days (or 2 if max age < 8 days) to try to get as little songs as possible, but also try to avoid multiple requests
                         "cursor": cursor,
-                        "mode": "ALL",
+                        "mode": "OFFICIAL",
                         "subType": null,
                         "roles": roles,
                         "order": "RELEASE_DATE",
@@ -163,7 +217,7 @@ module.exports = {
             error("Error on getting releases for artist", artist_id, resp);
         }
 
-        async function get_new_releases(auth_token, api_token, artist_ids) {
+        async function get_new_releases(auth_token, artist_ids) {
             const new_releases = [];
             const current_time = Date.now();
             let current_oldest_song_which_got_added_time  = current_time;
@@ -201,14 +255,15 @@ module.exports = {
                                 cover_img: release.node.cover.small[0],
                                 name: release.node.displayTitle,
                                 id: release.node.id,
-                                release_date: release.node.releaseDate - 7200000, // they get released at midnight UTC+2, but are shown to be released at midnight UTC so we would get negative time
+                                release_date: release.node.releaseDate - 7200000, // 2. comment: this is bugged with time zones idk. brain fuckery idk, // 1. comment: they get released at midnight UTC+2, but are shown to be released at midnight UTC so we would get negative time
                                 is_feature: config.types.features && release.node.contributors.edges.some(e => ( e.node.id === artist_id && e.roles.includes("FEATURED") ) || e.node.id === "5080") , // 5080 = Various artists
                                 type: release.node.type,
                                 is_favorite: release.node.isFavorite
                             };
 
                             // stop requesting songs if the song is older than the age limit...
-                            if (current_time - new_release.release_date > 1000 * 60 * 60 * 24 * config.max_song_age) {
+                            
+                            if ( ( (config.max_song_age < 0 && cache[user_data.user_id].last_checked > 0) && new_release.release_date < cache[user_data.user_id].last_checked) || (config.max_song_age >= 0 && current_time - new_release.release_date > 1000*60*60*24*config.max_song_age) ) {
                                 debug("Release was too old", new_release.id);
                                 next_page = null;
                                 break;
@@ -241,19 +296,22 @@ module.exports = {
 
                             debug("Getting songs in album", new_release.id);
                             const amount_of_songs_in_album_promise = (async () => {
-                                const amount_songs = await get_amount_of_songs_of_album(api_token, new_release.id);
+                                const amount_songs = await get_amount_of_songs_in_album(new_release.id);
                                 new_release.amount_songs = amount_songs;
                             })();
 
                             amount_of_songs_in_each_album_promises.push(amount_of_songs_in_album_promise);
                         }
                     }
+                    const status_indicator_span = document.querySelector(".release_radar_status_indicator_span");
+                    if (status_indicator_span) status_indicator_span.textContent = Math.floor(++artists_handled/artist_ids.length*100) + "%";
                 });
 
                 await Promise.all(batch_promises);
             }
 
             const batch_size = config.simultaneous_artists;
+            let artists_handled = 0;
             for (let i = 0; i < artist_ids.length; i += batch_size) {
                 const batch_artist_ids = artist_ids.slice(i, i + batch_size);
                 await process_artist_batch(batch_artist_ids);
@@ -265,8 +323,8 @@ module.exports = {
             return new_releases.slice(0, config.max_song_count);
         }
 
-        async function get_all_songs_from_album(album_id, api_token) {
-                const r = await fetch("https://www.deezer.com/ajax/gw-light.php?method=song.getListByAlbum&input=3&api_version=1.0&api_token="+api_token, {
+        async function get_all_songs_from_album(album_id) {
+                const r = await safe_fetch("https://www.deezer.com/ajax/gw-light.php?method=song.getListByAlbum&input=3&api_version=1.0&api_token=", {
                     "body": JSON.stringify({
                         "alb_id": album_id,
                         "start": 0,
@@ -279,8 +337,8 @@ module.exports = {
                 return resp.results.data;
             }
 
-        async function get_songs_in_playlist(playlist_id, api_token) {
-            const r = await fetch("https://www.deezer.com/ajax/gw-light.php?method=playlist.getSongs&input=3&api_version=1.0&api_token="+api_token, {
+        async function get_songs_in_playlist(playlist_id) {
+            const r = await safe_fetch("https://www.deezer.com/ajax/gw-light.php?method=playlist.getSongs&input=3&api_version=1.0&api_token=", {
                 "body": JSON.stringify({
                     "playlist_id": playlist_id.toString(),
                     "start": 0,
@@ -297,8 +355,8 @@ module.exports = {
             }
         }
 
-        async function add_songs_to_playlist(playlist_id, songs, api_token) {
-            const r = await fetch("https://www.deezer.com/ajax/gw-light.php?method=playlist.addSongs&input=3&api_version=1.0&api_token="+api_token, {
+        async function add_songs_to_playlist(playlist_id, songs) {
+            const r = await safe_fetch("https://www.deezer.com/ajax/gw-light.php?method=playlist.addSongs&input=3&api_version=1.0&api_token=", {
                 "body": JSON.stringify({
                     "playlist_id": playlist_id.toString(),
                     "songs": songs.map((s) => [s, 0]),
@@ -315,8 +373,8 @@ module.exports = {
             return resp;
         }
 
-        async function update_order_of_playlist(playlist_id, songs_in_order_newest_first, api_token) {
-            const r = await fetch("https://www.deezer.com/ajax/gw-light.php?method=playlist.updateOrder&input=3&api_version=1.0&api_token="+api_token, {
+        async function update_order_of_playlist(playlist_id, songs_in_order_newest_first) {
+            const r = await safe_fetch("https://www.deezer.com/ajax/gw-light.php?method=playlist.updateOrder&input=3&api_version=1.0&api_token=", {
                 "body": JSON.stringify({
                     "playlist_id": playlist_id.toString(),
                     "position": "0",
@@ -329,14 +387,14 @@ module.exports = {
             return resp;
         }
 
-        async function add_new_releases_to_playlist(playlist_id, new_releases, api_token) {
+        async function add_new_releases_to_playlist(playlist_id, new_releases) {
             new_releases = new_releases.filter(r => !cache.has_seen[r.id]);
             if (new_releases.length === 0) {
                 log("No new songs");
                 return;
             }
             debug("Getting songs in playlist", playlist_id);
-            let songs_in_playlist = await get_songs_in_playlist(playlist_id, api_token)
+            let songs_in_playlist = await get_songs_in_playlist(playlist_id);
             if (!songs_in_playlist) {
                 log("Aborting the adding of new releases to playlist");
                 return;
@@ -347,7 +405,7 @@ module.exports = {
             async function process_batch(batch) {
                 const promises = batch.map(async (new_release) => {
                     debug("Getting all songs from album for playlist", new_release.id);
-                    const songs_from_album = await get_all_songs_from_album(new_release.id, api_token);
+                    const songs_from_album = await get_all_songs_from_album(new_release.id);
                     for (let song_from_album of songs_from_album) {
                         if (song_from_album.ARTISTS.every( (artist) => artist.ART_ID !== new_release.from_artist) || // if it doesnt feature artist
                             is_song_filtered(song_from_album)) {
@@ -377,8 +435,8 @@ module.exports = {
                 return;
             }
 
-            log("Adding songs to playlust", playlist_id);
-            let resp = await add_songs_to_playlist(playlist_id, sorted_songs, api_token);
+            log("Adding songs to playlist", playlist_id);
+            let resp = await add_songs_to_playlist(playlist_id, sorted_songs);
             if (resp.error.length > 0 || resp.error.REQUEST_ERROR) {
                 error("Failed to add songs to playlist", playlist_id, resp.error);
                 return;
@@ -386,7 +444,7 @@ module.exports = {
 
             sorted_songs.push(...songs_in_playlist);
             log("Updating Order of playlist")
-            resp = await update_order_of_playlist(playlist_id, sorted_songs, api_token)
+            resp = await update_order_of_playlist(playlist_id, sorted_songs);
             return resp.results;
         }
 
@@ -395,7 +453,8 @@ module.exports = {
                     !config.types.singles && release.type === "SINGLES" || // filter singles
                     !config.types.albums && release.type === "ALBUM" || // filter albums
                     !config.types.eps && release.type === "EP" || // filter EPs
-                    (config.types.upcoming_releases === 2 && release.release_date > current_time) || // filter upcoming releases (if set to hide)
+                    // upcoming releases dont need to be filtered for the fact that they are upcoming, thats done in the way they are displayed
+                    // (config.types.upcoming_releases === 2 && release.release_date > current_time) || // filter upcoming releases (if set to hide)
                     config.filters.contributor_id.some(id => release.artists.some(artist => artist[1] === id)) || // filter contributors by id
                     config.filters.release_name.some(regex_str => (new RegExp(regex_str, "i")).test(release.name)) // filter releases by their name using regex
         }
@@ -423,6 +482,7 @@ module.exports = {
         }
 
         function migrate_config(config, CURRENT_CONFIG_VERSION) {
+            // functions to traverse and edit a json based on string paths
             const get_value = (obj, path) => {
                 return path.split(".").reduce((acc, key) => acc && acc[key], obj);
             }
@@ -462,8 +522,8 @@ module.exports = {
                     [null, "compact_mode", false],
                     [null, "filters", {
                         "contributor_id": ["5080"],
-                        "release_name": [String.raw`(\(|- )(((super )?slowed(( *&| *\+| *,) *reverb)?)|(sped up)|(reverb)|(8d audio)|(speed))( version)?\)? *$`],
-                        "song_name": [String.raw`(\(|- )(((super )?slowed(( *&| *\+| *,) *reverb)?)|(sped up)|(reverb)|(8d audio)|(speed))( version)?\)? *$`],
+                        "release_name": [String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
+                        "song_name": [String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
                     }],
                     [null, "types", {
                         singles: true,
@@ -475,6 +535,9 @@ module.exports = {
                 ],
                 [
                     [null, "simultaneous_artists", 10]
+                ],
+                [
+                    [null, "compact_mode", 0]
                 ]
             ]
 
@@ -498,7 +561,7 @@ module.exports = {
         }
 
         function get_config() {
-            const CURRENT_CONFIG_VERSION = 1;
+            const CURRENT_CONFIG_VERSION = 2;
 
             let config = localStorage.getItem("release_radar_config");
             if (config) {
@@ -519,13 +582,13 @@ module.exports = {
                 max_song_age: 30,
                 open_in_app: false,
                 playlist_id: null,
-                compact_mode: false,
+                compact_mode: 0,
                 filters: {
                     "contributor_id": ["5080"], // 5080 = Various Artists
-                    "release_name": [String.raw`(\(|- )(((super )?slowed(( *&| *\+| *,) *reverb)?)|(sped up)|(reverb)|(8d audio)|(speed))( version)?\)? *$`],
-                    "song_name": [String.raw`(\(|- )(((super )?slowed(( *&| *\+| *,) *reverb)?)|(sped up)|(reverb)|(8d audio)|(speed))( version)?\)? *$`], // dont add if any of the songs in the release hit a blacklist regex, may be difficult due to async nature
+                    "release_name": [String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
+                    "song_name": [String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`], // dont add if any of the songs in the release hit a blacklist regex, may be difficult due to async nature
                 },
-                "types": {
+                types: {
                     singles: true,
                     albums: true,
                     eps: true,
@@ -644,33 +707,9 @@ module.exports = {
             position: absolute;
             transform: translateX(50%) translateY(-50%);
             border-radius: var(--tempo-radii-full);
-        }
-        .release_radar_main_btn.adding_releases > span.release_radar_status_indicator_span,
-        .release_radar_main_btn.loading > span.release_radar_status_indicator_span {
-            min-width: 15px;
-            min-height: 15px;
-            background-color: var(--tempo-colors-background-brand-flame);
-            animation: load_pulse 2s infinite ease-in-out;;
-        }
-        .release_radar_main_btn.loading > span.release_radar_status_indicator_span {
-            background-color: var(--tempo-colors-background-brand-flame);
-        }
-        .release_radar_main_btn.adding_releases > span.release_radar_status_indicator_span {
-            background-color: var(--color-intent-warning);
-        }
-        @keyframes load_pulse {
-            0%, 100% {
-                filter: brightness(0.5);
-            }
-            50% {
-                filter: brightness(1.5);
-            }
-        }
-        .release_radar_main_btn.has_new > span.release_radar_status_indicator_span {
             display: flex;
             min-width: 24px;
             min-height: 24px;
-            background-color: var(--tempo-colors-background-accent-primary-default);
             color: white;
             font-size: 10px;
             padding-top: 2px;
@@ -681,6 +720,28 @@ module.exports = {
             align-items: center;
             justify-content: center;
         }
+        .release_radar_main_btn.loading > span.release_radar_status_indicator_span {
+            color: black;
+            font-size: 9px;
+            height: 25px;
+            width: 25px;
+            background-color: var(--tempo-colors-background-brand-flame);
+            animation: load_pulse 2s infinite ease-in-out;
+        }
+        .release_radar_main_btn.adding_releases > span.release_radar_status_indicator_span {
+            background-color: var(--color-intent-warning);
+        }
+        .release_radar_main_btn.has_new > span.release_radar_status_indicator_span {
+            background-color: var(--tempo-colors-background-accent-primary-default);
+        }
+        @keyframes load_pulse {
+            0%, 100% {
+                filter: brightness(0.5);
+            }
+            50% {
+                filter: brightness(1.5);
+            }
+        }
 
         .release_radar_wrapper_div {
             position: absolute;
@@ -688,8 +749,8 @@ module.exports = {
             z-index: 1;
             top: 34px;
         }
-        .release_radar_wrapper_div.hide {
-            display: none;
+        .hide {
+            display: none !important;
         }
 
         .release_radar_popper_div {
@@ -699,11 +760,20 @@ module.exports = {
             width: 375px;
             overflow: hidden;
             border-radius: 10px;
+            cursor: default;
         }
 
         .release_radar_main_div {
             max-height: 450px;
             overflow-y: auto;
+        }
+        .release_radar_main_div:not(:has(*)):after {
+            content: "No new releases";
+            display: block;
+            padding: 10px;
+            text-align: center;
+            color: var(--tempo-colors-text-neutral-secondary-default);
+            border-bottom: 1px solid var(--tempo-colors-divider-neutral-primary-default);
         }
 
         .release_radar_main_div_arrow {
@@ -722,10 +792,7 @@ module.exports = {
             font-weight: var(--tempo-fontWeights-heading-m);
             font-size: var(--tempo-fontSizes-heading-m);
             line-height: var(--tempo-lineHeights-heading-m);
-            border-bottom: 1px solid var(--tempo-colors-border-neutral-primary-default);
-        }
-        .release_radar_main_div_header_div > span {
-            cursor: default;
+            border-bottom: 1px solid var(--tempo-colors-border-neutral-primary-default)
         }
 
         .release_radar_main_div_header_div > button {
@@ -742,26 +809,28 @@ module.exports = {
             grid-template-columns: repeat(6, minmax(0, 6fr));
             gap: 7px 10px;
             margin-top: 10px;
-            max-height: 200px;
+            max-height: 250px;
             overflow: auto;
-            scrollbar-width: none;
+            scrollbar-width: thin;
+            padding-right: 5px;
+            width: calc(100% + 5px + 10px);
             font-size: 12px;
             font-weight: normal;
         }
         .release_radar_settings_wrapper_div::-webkit-scrollbar {
-            display: none;
+            width: 10px;
         }
 
         .release_radar_main_div_header_div > div > label {
             display: flex;
             flex-direction: column;
             color: var(--tempo-colors-text-neutral-secondary-default);
-            cursor: default;
         }
 
         .release_radar_main_div_header_div > div > label > input,
         .release_radar_main_div_header_div > div > label > textarea,
-        .release_radar_main_div_header_div > div > label > select {
+        .release_radar_main_div_header_div > div > label > select,
+        .release_radar_main_div_header_div > div > label > button {
             background-color: var(--tempo-colors-background-neutral-tertiary-default);
             border: 1px var(--tempo-colors-border-neutral-primary-default) solid;
             border-radius: var(--tempo-radii-s);
@@ -782,13 +851,17 @@ module.exports = {
         }
         .release_radar_main_div_header_div > div > label > input:hover,
         .release_radar_main_div_header_div > div > label > textarea:hover,
-        .release_radar_main_div_header_div > div > label > select:hover {
+        .release_radar_main_div_header_div > div > label > select:hover,
+        .release_radar_main_div_header_div > div > label > button:hover {
             background-color: var(--tempo-colors-background-neutral-tertiary-hovered);
         }
         .release_radar_main_div_header_div > div > label > input:focus,
         .release_radar_main_div_header_div > div > label > textarea:focus,
         .release_radar_main_div_header_div > div > label > select:focus {
             border-color: var(--tempo-colors-border-neutral-primary-focused);
+        }
+        .release_radar_main_div_header_div > div > label > button:active {
+            background-color: var(--color-grey-500);
         }
 
         .release_radar_main_div_header_div > div > label > input[type='checkbox'] {
@@ -798,8 +871,10 @@ module.exports = {
         }
 
         .release_radar_upcoming_releases_details {
-            border-left: 1px solid var(--tempo-colors-divider-neutral-primary-disabled,var(--color-dark-grey-300));
-            border-bottom: 1px solid var(--tempo-colors-divider-neutral-primary-disabled,var(--color-dark-grey-300));
+            border-bottom: 1px solid var(--color-dark-grey-500);
+        }
+        .release_radar_upcoming_releases_details[open] {
+            border-left: 1px solid var(--color-dark-grey-500);
         }
 
         .release_radar_upcoming_releases_details > summary {
@@ -830,7 +905,7 @@ module.exports = {
             position: relative;
         }
         .release_radar_img_container_div > img {
-            border: 2px solid transparent;
+            border: 1px solid transparent;
             border-radius: var(--tempo-radii-xs);
             cursor: pointer;
         }
@@ -898,8 +973,7 @@ module.exports = {
             animation-direction: reverse;
         }
 
-
-        .release_radar_song_info_div {
+        .release_radar_top_info_div {
             display: flex;
             flex-direction: column;
             height: auto;
@@ -907,19 +981,19 @@ module.exports = {
             max-width: 80%;
         }
 
-        .release_radar_song_info_div * {
+        .release_radar_top_info_div * {
             padding-left: 15px;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
             max-width: fit-content;
         }
-        .release_radar_song_info_div > a {
+        .release_radar_top_info_div > a {
             position: relative;
-            padding-right: 35px;
+            padding-right: 20px;
             font-size: 16px;
         }
-        .release_radar_release_li.is_new .release_radar_song_info_div > a::before {
+        .release_radar_release_li.is_new .release_radar_top_info_div > a::before {
             content: "";
             display: inline-block;
             width: 12px;
@@ -928,8 +1002,8 @@ module.exports = {
             background-color: var(--tempo-colors-background-accent-primary-default);
             margin-right: 5px;
         }
-        .release_radar_release_li.is_feature .release_radar_song_info_div > a::after {
-            content: "feat.";
+        .release_radar_release_li.is_feature .release_radar_top_info_div > a::after {
+            content: "f.";
             position: absolute;
             right: 0;
             padding: 3px;
@@ -944,7 +1018,7 @@ module.exports = {
             cursor: pointer;
         }
 
-        .release_radar_song_info_div > div {
+        .release_radar_top_info_div > div {
             color: var(--tempo-colors-text-neutral-secondary-default);
             font-size: 14px;
         }
@@ -965,18 +1039,13 @@ module.exports = {
         .release_radar_main_div.compact .release_radar_release_li {
             padding: 4px 16px;
         }
-        .release_radar_main_div.compact .release_radar_release_li > div > div.release_radar_img_container_div {
-            display: none;
-        }
-        .release_radar_main_div.compact .release_radar_release_li > div > .release_radar_song_info_div {
+        .release_radar_main_div.compact .release_radar_release_li > div > .release_radar_top_info_div {
             padding-top: 0px;
         }
-        .release_radar_main_div.compact .release_radar_release_li > div > .release_radar_song_info_div > a {
-            padding-left: 0px;
+        .release_radar_main_div.compact .release_radar_release_li > div > .release_radar_top_info_div > a {
             font-size: 14px;
         }
-        .release_radar_main_div.compact .release_radar_release_li > div > .release_radar_song_info_div > div {
-            padding-left: 0px;
+        .release_radar_main_div.compact .release_radar_release_li > div > .release_radar_top_info_div > div {
             font-size: 13px;
         }
         .release_radar_main_div.compact .release_radar_release_li > .release_radar_bottom_info_div {
@@ -984,15 +1053,59 @@ module.exports = {
             font-size: 11px;
         }
 
-        .filtered {
+        .release_radar_main_div.compact .release_radar_release_li > div > div.release_radar_img_container_div {
+            width: 40px;
+        }
+        .release_radar_main_div.no_image .release_radar_release_li > div > .release_radar_top_info_div {
+            max-width: 100%;
+        }
+        .release_radar_main_div.no_image .release_radar_release_li > div > .release_radar_top_info_div > a {
+            padding-left: 0px;
+        }
+        .release_radar_main_div.no_image .release_radar_release_li > div > .release_radar_top_info_div > div {
+            padding-left: 0px;
+        }
+        .release_radar_main_div.no_image .release_radar_release_li.is_favorite .release_radar_top_info_div {
+            padding-right: 7px;
+        }
+        .release_radar_main_div.no_image .release_radar_release_li.is_favorite .release_radar_top_info_div:after {
+            color: var(--tempo-colors-text-accent-primary-default);
+            content: "❤︎";
+            position: absolute;
+            right: 2px;
+        }
+
+        .release_radar_main_div.no_image .release_radar_release_li > div > div.release_radar_img_container_div {
             display: none;
+        }
+        .release_radar_main_div.no_image .release_radar_release_li {
+            padding-top: 8px;
+        }
+        .release_radar_main_div.minimal .release_radar_release_li {
+            padding: 8px 8px 8px 16px;
+        }
+        .release_radar_main_div.minimal .release_radar_release_li > div > .release_radar_top_info_div {
+            flex-direction: row;
+        }
+        .release_radar_main_div.minimal .release_radar_release_li a {
+            padding-right: 14px;
         }
         `;
 
             document.querySelector("head").appendChild(css);
         }
 
-        function create_new_releases_lis(new_releases, main_btn, wrapper_div, language) {
+        function set_compact_mode(main_div) {
+            if (config.compact_mode === 0) {
+                main_div.classList.remove("compact", "no_image", "minimal");
+                return;
+            }
+            main_div.classList.add("compact");
+            main_div.classList.toggle("no_image", config.compact_mode >= 2);
+            main_div.classList.toggle("minimal", config.compact_mode === 3);
+        }
+
+        function create_new_releases_lis(new_releases, main_btn) {
             function create_release_li(release) {
                 const release_li = document.createElement("li");
                 release_li.className = "release_radar_release_li";
@@ -1094,10 +1207,10 @@ module.exports = {
                 image_container_div.append(release_img, play_button);
 
                 const song_info_div = document.createElement("div");
-                song_info_div.className = "release_radar_song_info_div";
+                song_info_div.className = "release_radar_top_info_div";
 
                 const song_title_a = document.createElement("a");
-                song_title_a.href = `${(config.open_in_app ? "deezer" : "https")}://www.deezer.com/${language}/album/${release.id}`;
+                song_title_a.href = `${(config.open_in_app ? "deezer" : "https")}://www.deezer.com/${user_data.language}/album/${release.id}`;
                 song_title_a.textContent = release.name;
                 song_title_a.title = release.name;
 
@@ -1105,7 +1218,7 @@ module.exports = {
                     if (song_title_a.href.startsWith("deezer")) {
                         return;
                     }
-                    ajax_load(`/${language}/album/${release.id}`);
+                    ajax_load(`/${user_data.language}/album/${release.id}`);
                     e.preventDefault();
                 }
 
@@ -1120,6 +1233,7 @@ module.exports = {
 
                 const artists_div = document.createElement("div");
                 artists_div.textContent = release.artists.map(a => a[0]).join(", ");
+                artists_div.title = artists_div.textContent;
 
                 song_info_div.append(song_title_a, artists_div);
 
@@ -1146,7 +1260,7 @@ module.exports = {
                             amount_songs_span.remove(); // we wont need it anymore as we reload the page to udpate songs
                         }
 
-                        cache.has_seen[release.id] = true;
+                        cache.has_seen[release.id] = 1;
                         set_cache(cache);
                     }
                 }
@@ -1157,7 +1271,7 @@ module.exports = {
 
                 // filter releases which are cached but not in the wanted selection anymore (e.g. Feat. was unchecked without reloading the cache)
                 if (is_release_filtered(release)) {
-                    release_li.classList.add("filtered");
+                    release_li.classList.add("hide");
                 }
 
                 return release_li;
@@ -1177,30 +1291,37 @@ module.exports = {
             const past_releases = new_releases.filter(r => r.release_date <= now);
             const past_releases_lis = past_releases.map(r => create_release_li(r));
 
+            const releases_to_be_returned = [];
+
             let upcoming_releases_lis = [];
-            if (config.types.upcoming_releases !== 2) { // not hidden
-                const upcoming_releases = new_releases.filter(r => r.release_date > now);
-
-                if (upcoming_releases.length > 0) {
-                    upcoming_releases_lis = upcoming_releases.map(r => create_release_li(r))
-
-                    if (config.types.upcoming_releases === 1) { // Separated
-                        const upcoming_releases_details = document.createElement("details");
-                        upcoming_releases_details.className = "release_radar_upcoming_releases_details";
-                        const upcoming_releases_details_summary = document.createElement("summary");
-                        upcoming_releases_details_summary.textContent = upcoming_releases.length+" Upcoming Releases";
-                        upcoming_releases_details.append(upcoming_releases_details_summary, ...upcoming_releases_lis);
-                        upcoming_releases_lis = [upcoming_releases_details]; // hacky way to allow the return whether there are upcoming releases or not
-                    }
+            const upcoming_releases = new_releases.filter(r => r.release_date > now);
+            if (upcoming_releases.length > 0) {
+                upcoming_releases_lis = upcoming_releases.map(r => create_release_li(r))
+                const upcoming_releases_details = document.createElement("details");
+                upcoming_releases_details.className = "release_radar_upcoming_releases_details";
+    
+                const upcoming_releases_details_summary = document.createElement("summary");
+                upcoming_releases_details_summary.textContent = upcoming_releases.length+pluralize(" Upcoming Release", upcoming_releases.length);
+                
+                upcoming_releases_details.append(upcoming_releases_details_summary, ...upcoming_releases_lis);
+                
+                if (config.types.upcoming_releases === 0) { // normal
+                    upcoming_releases_details_summary.classList.add("hide");
+                    upcoming_releases_details.open = true;
                 }
+                else if (config.types.upcoming_releases === 2) { // hide
+                    upcoming_releases_details.classList.add("hide");
+                }
+                
+                releases_to_be_returned.push(upcoming_releases_details);
             }
-
 
             if (amount_new_songs <= 0) {
                 amount_songs_span.remove();
             }
 
-            return [...upcoming_releases_lis, ...past_releases_lis];
+            releases_to_be_returned.push(...past_releases_lis);
+            return releases_to_be_returned;
         }
 
         class Setting {
@@ -1224,6 +1345,7 @@ module.exports = {
                     set_config(config);
                     if (additional_callback) additional_callback(this.config_key_parent[this.config_key]);
                 }
+                
                 this.setting_label.appendChild(setting_input);
                 return this.setting_label;
             }
@@ -1231,15 +1353,16 @@ module.exports = {
             number_setting(modify_value_callback=null, additional_callback=null, range=[null, null, null]) {
                 const setting_input = document.createElement("input");
                 setting_input.type = "number";
-                setting_input.min = range[0];
-                setting_input.max = range[1];
-                setting_input.step = range[2];
+                if (setting_input.min) setting_input.min = range[0];
+                if (setting_input.max) setting_input.max = range[1];
+                if (setting_input.step) setting_input.step = range[2];
                 setting_input.value = this.config_key_parent[this.config_key];
                 setting_input.onchange = () => {
                     this.config_key_parent[this.config_key] = modify_value_callback ? modify_value_callback(setting_input.value) : parseInt(setting_input.value);
                     set_config(config);
                     if (additional_callback) additional_callback(this.config_key_parent[this.config_key]);
                 }
+                
                 this.setting_label.appendChild(setting_input);
                 return this.setting_label;
             }
@@ -1254,6 +1377,7 @@ module.exports = {
                     set_config(config);
                     if (additional_callback) additional_callback(this.config_key_parent[this.config_key]);
                 };
+                
                 this.setting_label.appendChild(setting_input);
                 return this.setting_label;
             }
@@ -1278,6 +1402,15 @@ module.exports = {
                 this.setting_label.appendChild(setting_input);
                 return this.setting_label;
             }
+
+            button_setting(text, on_click) {
+                const setting_input = document.createElement("button");
+                setting_input.textContent = text;
+                setting_input.onclick = () => {on_click(setting_input)};
+                
+                this.setting_label.appendChild(setting_input);
+                return this.setting_label;
+            }
         }
 
 
@@ -1294,7 +1427,7 @@ module.exports = {
             const main_div = document.createElement("div");
             main_div.className = "release_radar_main_div";
             if (config.compact_mode) {
-                main_div.classList.add("compact");
+                set_compact_mode(main_div);
             }
 
             const header_wrapper_div = document.createElement("div");
@@ -1309,7 +1442,7 @@ module.exports = {
             mark_all_as_seen_button.onclick = async () => {
                 const new_releases = await wait_for_new_releases_promise;
                 for (let new_release of new_releases) {
-                    cache.has_seen[new_release.id] = true;
+                    cache.has_seen[new_release.id] = 1;
                     set_cache(cache);
                 }
                 main_div.querySelectorAll("li.release_radar_release_li.is_new").forEach(e => {e.onmouseover()});
@@ -1319,163 +1452,211 @@ module.exports = {
             settings_button.textContent = "\u2699";
             settings_button.title = "Settings";
 
-            let show = false;
-            let settings_wrapper;
+            const filter_releases = async (args) => {
+                const new_releases = await wait_for_new_releases_promise;
+                const all_releases = main_div.querySelectorAll("li.release_radar_release_li");
+                new_releases.forEach((release, i) => {
+                    all_releases[i].classList.toggle("hide", is_release_filtered(release));
+                });
+
+                 // if all the upcoming releases are filtered out, hide the details element
+                const upcoming_releases_details = main_div.querySelector("details");
+                upcoming_releases_details.classList.toggle("hide", upcoming_releases_details && !upcoming_releases_details.querySelector("li:not(.hide)"));
+            }
+            
+            const settings_wrapper = document.createElement("div");
+            settings_wrapper.className = "release_radar_settings_wrapper_div hide";
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Albums",
+                    "Include Albums",
+                    config.types, "albums",
+                    "span 1"
+                )).checkbox_setting(null, filter_releases)
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Singles",
+                    "Include Singles",
+                    config.types, "singles",
+                    "span 1"
+                )).checkbox_setting(null, filter_releases)
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "EPs",
+                    "Include EPs",
+                    config.types, "eps",
+                    "span 1"
+                )).checkbox_setting(null, filter_releases)
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Feat.",
+                    "Include Features. This also includes albums by 'Various artists', to avoid this, blacklist that 'artist' with the ID (5080).",
+                    config.types, "features",
+                    "span 1"
+                )).checkbox_setting(null, filter_releases)
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Upcoming",
+                    "How to display upcoming releases.",
+                    config.types, "upcoming_releases",
+                    "span 2"
+                )).dropdown_setting(["Normal", "Separate", "Hide"], (selected_index) => {
+                    const upcoming_releases_details = document.querySelector("div.release_radar_main_div > details");
+                    const upcoming_releases_details_summary = upcoming_releases_details.querySelector("summary");
+                    
+                    // 0 = normal, 1 = seperate, 2 = hide
+                    upcoming_releases_details.open = selected_index === 0;
+                    upcoming_releases_details_summary.classList.toggle("hide", selected_index !== 1);
+
+                    return selected_index;
+                })
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Max. Songs",
+                    "The maximum amount of songs displayed at once. Only applies after a new scan.",
+                    config, "max_song_count",
+                    "span 2"
+                )).number_setting(null, null, [0, null, 5])
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Max. Age",
+                    "The maximum age of a displayed song (in days). Values below 0 mean to only get songs released after the last scan (improves performance). This affects how many requests are made, so keep it low to avoid performance/ratelimit issues. Only applies after a new scan.",
+                    config, "max_song_age",
+                    "span 2"
+                )).number_setting(null, null, [-1, null, 5])
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Parallelism",
+                    "How many artists are handled simultaneously. This greatly impacts the speed of fetching the releases. If you get ratelimited or frequent errors occur, turn this down.",
+                    config, "simultaneous_artists",
+                    "span 2"
+                )).number_setting(null, null, [1, null, 1])
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Playlist",
+                    "The ID of the playlist in which to store new songs in (the numbers in the url). Empty in order to not save. Songs only get added after a page reload.",
+                    config, "playlist_id",
+                    "span 2"
+                )).number_setting((playlist_id) => playlist_id.trim() === "" ? null : parseInt(playlist_id).toString())
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Density", // help i cant do compact bc its too wide
+                    "Make everything more compact, allowing for more songs to be viewed at once.",
+                    config, "compact_mode",
+                    "span 2"
+                )).dropdown_setting(["Normal", "Compact", "No image", "Minimal"], null, () => {
+                    set_compact_mode(main_div);
+                })
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "App",
+                    "Open the links in the deezer desktop app.",
+                    config, "open_in_app",
+                    "span 1"
+                )).checkbox_setting(null, (checked) => {
+                    main_div.querySelectorAll("a").forEach(a => a.href = a.href.replace(checked ? "https" : "deezer", checked ? "deezer" : "https"));
+                })
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Release Name Blacklist Regexes",
+                    "Blacklist releases by their names from being displayed/fetched using regex. Separate by new line. Each regex is case insensitive. Test your regexes in the browser, as JS' regex is a bit wonky.",
+                    config.filters, "release_name",
+                    "span 6"
+                )).text_setting((release_name_regexes) => {
+                    return release_name_regexes.split("\n").filter(r => r.trim() !== "");
+                }, filter_releases)
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Song Name Blacklist Regexes",
+                    "Blacklist songs by their names from getting added to a playlist using regex. Separate by new line. Each regex is case insensitive. Test your regexes in the browser, as JS' regex is a bit wonky.",
+                    config.filters, "song_name",
+                    "span 6"
+                )).text_setting((song_name_regexes) => {
+                    return song_name_regexes.split("\n").filter(r => r.trim() !== "");
+                })
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Artist ID Blacklist",
+                    "Blacklist contributors by their ID (the numbers in the url). Separate with comma. 5080 is the ID for 'Various Artists'",
+                    config.filters, "contributor_id",
+                    "span 6"
+                )).text_setting((artist_ids_str) => {
+                    return artist_ids_str.split(",").map(l => Number(l.trim()) ? l.trim() : null).filter(id => id !== null); // ignore faulty ones
+                }, filter_releases)
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Export Config",
+                    "Copy your config to the clipboard.",
+                    null, null,
+                    "span 2"
+                )).button_setting("\u2912", () => {
+                    navigator.clipboard.writeText(JSON.stringify(config, null, 4));
+                })
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Import Config",
+                    "Import a config from the clipboard. Requires a hard page reload to apply visually. Requires the clipboard permission in the browser. Note that you have the full responsibility to validate the config.",
+                    null, null,
+                    "span 2"
+                )).button_setting("\u2913", async () => {
+                    const has_clipboard = await navigator.permissions.query({ name: 'clipboard-read' })
+                    if (has_clipboard.state === 'granted' || has_clipboard.state === 'prompt') {
+                        try {
+                            const new_config = JSON.parse(await navigator.clipboard.readText());
+                            set_config(new_config);
+                            log("Imported config");
+                        } catch (e) {
+                            error("Failed importing config from clipboard", e);
+                        }
+                    }
+                })
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "Delete Config",
+                    "Delete your current config. Can fix issues, backup your regexes etc. before deleting.",
+                    null, null,
+                    "span 2"
+                )).button_setting("\u2716", () => {
+                    localStorage.removeItem("release_radar_config");
+                })
+            );
+
+
             settings_button.onclick = () => {
-                show = !show;
-                if (!show) {
-                    settings_wrapper?.remove();
-                    return;
-                }
-
-                settings_wrapper = document.createElement("div");
-                settings_wrapper.className = "release_radar_settings_wrapper_div";
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Max. Songs",
-                        "The maximum amount of songs displayed at once. Only applies after a new scan.",
-                        config, "max_song_count",
-                        "span 2"
-                    )).number_setting()
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Max. Age",
-                        "The maximum age of a displayed song (in days). This affects how many requests are made, so keep it low to avoid performance/ratelimit issues. Only applies after a new scan.",
-                        config, "max_song_age",
-                        "span 2"
-                    )).number_setting()
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Playlist",
-                        "The ID of the playlist in which to store new songs in (the numbers in the url). Empty in order to not save. Songs only get added after a page reload.",
-                        config, "playlist_id",
-                        "span 2"
-                    )).number_setting((playlist_id) => playlist_id.trim() === "" ? null : parseInt(playlist_id).toString())
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Dense", // help i cant do compact bc its too wide
-                        "Make everything more compact, allowing for more songs to be viewed at once.",
-                        config, "compact_mode",
-                        "span 1"
-                    )).checkbox_setting(null, (checked) => {
-                        main_div.classList.toggle("compact", checked);
-                    })
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "App",
-                        "Open the links in the deezer desktop app.",
-                        config, "open_in_app",
-                        "span 1"
-                    )).checkbox_setting(null, (checked) => {
-                        main_div.querySelectorAll("a").forEach(a => a.href = a.href.replace(checked ? "https" : "deezer", checked ? "deezer" : "https"));
-                    })
-                );
-
-                const filter_releases = async (args) => {
-                    const new_releases = await wait_for_new_releases_promise;
-                    const all_releases = main_div.querySelectorAll("li.release_radar_release_li");
-                    new_releases.forEach((release, i) => {
-                        all_releases[i].classList.toggle("filtered", is_release_filtered(release));
-                    });
-                }
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Feat.",
-                        "Include Features. This also includes albums by 'Various artists', to avoid this, blacklist that 'artist' with the ID (5080).",
-                        config.types, "features",
-                        "span 1"
-                    )).checkbox_setting(null, filter_releases)
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Singles",
-                        "Include Singles",
-                        config.types, "singles",
-                        "span 1"
-                    )).checkbox_setting(null, filter_releases)
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "EPs",
-                        "Include EPs",
-                        config.types, "eps",
-                        "span 1"
-                    )).checkbox_setting(null, filter_releases)
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Albums",
-                        "Include Albums",
-                        config.types, "albums",
-                        "span 1"
-                    )).checkbox_setting(null, filter_releases)
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Upcoming",
-                        "How to handle upcoming releases. Only applies after a page reload.",
-                        config.types, "upcoming_releases",
-                        "span 2"
-                    )).dropdown_setting(["Normal", "Separate", "Hide"])
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Parallelism",
-                        "How many artists are handled simultaneously. This has a high impact on the speed of fetching the releases. If you get ratelimited or frequent errors occur, turn this down.",
-                        config, "simultaneous_artists",
-                        "span 2"
-                    )).number_setting()
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Release Name Blacklist Regexes",
-                        "Blacklist releases by their names from being displayed/fetched using regex. Separate by new line. Each regex is case insensitive. Test your regexes in the browser, as JS' regex is a bit wonky.",
-                        config.filters, "release_name",
-                        "span 6"
-                    )).text_setting((release_name_regexes) => {
-                        return release_name_regexes.split("\n").filter(r => r.trim() !== "");
-                    }, filter_releases)
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Song Name Blacklist Regexes",
-                        "Blacklist songs by their names from getting added to a playlist using regex. Separate by new line. Each regex is case insensitive. Test your regexes in the browser, as JS' regex is a bit wonky.",
-                        config.filters, "song_name",
-                        "span 6"
-                    )).text_setting((song_name_regexes) => {
-                        return song_name_regexes.split("\n").filter(r => r.trim() !== "");
-                    })
-                );
-
-                settings_wrapper.appendChild(
-                    (new Setting(
-                        "Artist ID Blacklist",
-                        "Blacklist contributors by their ID (the numbers in the url). Separate with comma. 5080 is the ID for 'Various Artists'",
-                        config.filters, "contributor_id",
-                        "span 6"
-                    )).text_setting((artist_ids_str) => {
-                        return artist_ids_str.split(",").map(l => Number(l.trim()) ? l.trim() : null).filter(id => id !== null); // ignore faulty ones
-                    }, filter_releases)
-                );
-
-                header_wrapper_div.appendChild(settings_wrapper);
+                settings_wrapper.classList.toggle("hide");
             }
 
             const reload_button = document.createElement("button");
@@ -1483,13 +1664,13 @@ module.exports = {
             reload_button.title = "Scan for new songs. This reloads the page. Use after changing a setting or if something broke.";
             reload_button.onclick = () => {
                 debug("Clearing cache and reloading");
-                cache[user_id].new_releases = [];
-                cache[user_id].last_checked = 0;
+                cache[user_data.user_id].new_releases = [];
+                if (config.max_song_age >= 0) cache[user_data.user_id].last_checked = 0; // if the max age is -1, we check if the song is newer than the last check, which would result in max requests for every artist if the last_checked is 0
                 set_cache(cache);
                 location.reload();
             }
 
-            header_wrapper_div.append(header_span, mark_all_as_seen_button, reload_button, settings_button);
+            header_wrapper_div.append(header_span, mark_all_as_seen_button, reload_button, settings_button, settings_wrapper);
 
             const last_checked_span = document.createElement("span");
             last_checked_span.className = "release_radar_last_checked_span";
@@ -1528,8 +1709,8 @@ module.exports = {
             main_btn.onclick = () => {
                 const is_closed = wrapper_div.classList.toggle("hide");
                 if (!is_closed) {
-                    if (cache[user_id].last_checked && cache[user_id.last_checked] !== 0) {
-                        last_checked_span.textContent = `Last Update - ${time_ago(cache[user_id].last_checked)}`;
+                    if (cache[user_data.user_id].last_checked && cache[user_data.user_id.last_checked] !== 0) {
+                        last_checked_span.textContent = `Last Update - ${time_ago(cache[user_data.user_id].last_checked)}`;
                     } else {
                         last_checked_span.textContent = "Currently updating...";
                     }
@@ -1542,7 +1723,7 @@ module.exports = {
         // globals
         let ui_initialized = false;
         const config = get_config();
-        let user_id;
+        const user_data = {};
         let cache;
 
         main();
@@ -1571,31 +1752,37 @@ module.exports = {
             }
 
             log("Getting user data");
-            const user_data = await get_user_data();
-            user_id = user_data.results.USER.USER_ID;
+            const user_data_tmp = await get_user_data();
+            user_data.language = user_data_tmp.results.SETTING_LANG;
+            user_data.user_id = user_data_tmp.results.USER.USER_ID;
+            user_data.api_token = user_data_tmp.results.checkForm;
+            user_data.currently_renewing_api_token = null;
+            user_data.session_id = user_data_tmp.results.SESSION_ID;
+            user_data.user_token = user_data_tmp.results.USER_TOKEN;
+            user_data.license_token = user_data_tmp.results.USER.OPTIONS.license_token;
 
-            const api_token = user_data.results.checkForm;
+            log(user_data);
 
             cache = get_cache();
             if (!cache.has_seen) cache.has_seen = {}
 
             // use cache if cache for this user exists and if we havent checked that day
-            if (cache[user_id] && is_after_utc_midnight(cache[user_id].last_checked) ) {
+            if (cache[user_data.user_id] && is_after_utc_midnight(cache[user_data.user_id].last_checked) ) {
                 log("Checked earlier, using cache");
-                new_releases = cache[user_id].new_releases;
+                new_releases = cache[user_data.user_id].new_releases;
                 resolve_wait_for_new_releases_promise(new_releases);
             } else {
                 log("Getting followed artists");
-                const artist_ids = await get_all_followed_artists(user_id);
+                const artist_ids = await get_all_followed_artists();
 
                 log("Authenticating");
                 const auth_token = await get_auth_token();
 
                 log("Getting new releases")
-                new_releases = await get_new_releases(auth_token, api_token, artist_ids);
+                new_releases = await get_new_releases(auth_token, artist_ids);
                 resolve_wait_for_new_releases_promise(new_releases);
 
-                cache[user_id] = {
+                cache[user_data.user_id] = {
                     last_checked: Date.now(),
                     new_releases: new_releases
                 }
@@ -1624,13 +1811,13 @@ module.exports = {
                 await wait_for_new_releases_promise;
                 log("Got data");
 
-                const new_releases_divs = create_new_releases_lis(new_releases, main_btn, wrapper_div, user_data.results.SETTING_LANG);
+                const new_releases_divs = create_new_releases_lis(new_releases, main_btn);
                 main_div.append(...new_releases_divs);
                 main_btn.classList.remove("loading");
                 if (config.playlist_id) {
                     log("Beginning adding songs to playlist", config.playlist_id);
                     main_btn.classList.add("adding_releases");
-                    await add_new_releases_to_playlist(config.playlist_id, new_releases, api_token);
+                    await add_new_releases_to_playlist(config.playlist_id, new_releases);
                     main_btn.classList.remove("adding_releases");
                 }
 
