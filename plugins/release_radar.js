@@ -255,7 +255,7 @@ module.exports = {
                                 cover_img: release.node.cover.small[0],
                                 name: release.node.displayTitle,
                                 id: release.node.id,
-                                release_date: release.node.releaseDate - 7200000, // 2. comment: this is bugged with time zones idk. brain fuckery idk, // 1. comment: they get released at midnight UTC+2, but are shown to be released at midnight UTC so we would get negative time
+                                release_date: release.node.releaseDate,
                                 is_feature: config.types.features && release.node.contributors.edges.some(e => ( e.node.id === artist_id && e.roles.includes("FEATURED") ) || e.node.id === "5080") , // 5080 = Various artists
                                 type: release.node.type,
                                 is_favorite: release.node.isFavorite
@@ -671,11 +671,11 @@ module.exports = {
             return `${prefix}${time_ago} ${pluralize(capitalize ? unit.charAt(0).toUpperCase()+unit.slice(1) : unit, time_ago)}${suffix}`;
         }
 
-        function is_after_utc_midnight(unix_timestamp) {
-            let now = new Date(Date.now());
-            let utc_midnight = new Date( Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) ); // get todays 00:00 UTC
+        function is_after_local_midnight(unix_timestamp) {
+            let local_midnight = new Date();
+            local_midnight.setHours(0,0,0,0);
 
-            return unix_timestamp > utc_midnight;
+            return unix_timestamp > local_midnight;
         }
 
         // data stuff end
@@ -1767,7 +1767,7 @@ module.exports = {
             if (!cache.has_seen) cache.has_seen = {}
 
             // use cache if cache for this user exists and if we havent checked that day
-            if (cache[user_data.user_id] && is_after_utc_midnight(cache[user_data.user_id].last_checked) ) {
+            if (cache[user_data.user_id] && is_after_local_midnight(cache[user_data.user_id].last_checked) ) {
                 log("Checked earlier, using cache");
                 new_releases = cache[user_data.user_id].new_releases;
                 resolve_wait_for_new_releases_promise(new_releases);
