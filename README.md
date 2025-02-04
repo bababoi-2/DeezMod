@@ -7,6 +7,9 @@ If you used the microsoft store to install Deezer, the installation can more dif
 ## Updating Deezer
 When updating deezer with the installer (for example to upgrade to version 7.*) please make sure to **backup** any plugins (or similar) you downloaded. The update completely wipes the Deezer installation (every file and folder), so DeezMod and the plugins get deleted. I'm considering moving the plugin location to the documents or appdata folder, we'll see.
 
+## Other Platforms
+ Altough built for Windows, due to the crossplatform nature of electron, it should work on Mac and Linux just fine, you just need to install it manually, see the setup instructions.
+
 ## Setup
 > Note: any mention of `%localappdata%\Programs\deezer-desktop\` can be replaced with wherever your deezer installation is located.
 It is generally recommended to always build from source to have the most up to date version (Full Mode in installer)
