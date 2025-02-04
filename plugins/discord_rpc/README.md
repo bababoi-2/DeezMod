@@ -1,4 +1,5 @@
 # Discord RPC
+Has the same features as https://github.com/JustYuuto/deezer-discord-rpc (except the adblocker, we don't do that here).
 
 This plugin requires a few dependencies. They are all inside of the discord_rpc folder. Based on https://github.com/xhayper/discord-rpc and inspired by https://github.com/JustYuuto/deezer-discord-rpc.
 
