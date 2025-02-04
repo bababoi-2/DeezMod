@@ -24,3 +24,6 @@ Changes the volume control to increase exponentially, allowing for more precise 
 
 ### Toggle Features
 A plugin to toggle various features in the desktop application, for example gapless playback. Very experimental plugin, I've tested basically 0 features, so only change features if you are sure what you are doing. By default gapless playback is enabled.
+
+### Discord RPC
+Automatically displays your currently playing song on Discord. Inspired by https://github.com/JustYuuto/deezer-discord-rpc, has the same features.
