@@ -124,7 +124,7 @@ module.exports = {
                     })
                     .catch(e => {
                         log("[ERROR] Failed to authenticate to RPC");
-                        delay = Math.min(delay * 1, 60000); // it will retry every 1 minute at worst
+                        delay = Math.min(delay * 1.5, 60000); // it will retry every 1 minute at worst
                         setTimeout(retry, delay);
                     });
             };
@@ -134,17 +134,17 @@ module.exports = {
 
         const CLIENT_ID = '1258131430928547880'; // https://github.com/JustYuuto/deezer-discord-rpc/, nom nom nom :D
         let client_logged_in = false; 
-        log(__dirname);
         let discord_rpc;
         try {
             discord_rpc = require("./discord_rpc/discord-rpc");
+            debug("Loaded discord-rpc dependency successfully");
         } catch (e) {
-            log("Failed to import the discord-rpc module as a folder, are you sure it is in the plugins folder under plugins/discord_rpc? Falling back to bundled version");
+            debug("Failed to import the discord-rpc module as a folder, are you sure it is in plugins/discord_rpc? Falling back to bundled version");
             try {
                 discord_rpc = require("./discord_rpc/bundled_deps.js");
-                log("Loaded bundled version successfully");
+                debug("Loaded bundled discord-rpc dependency successfully");
             } catch (e) {
-                error("Failed to import the bundled discord-rpc module, are you sure it is in the plugins folder under plugins/discord_rpc/bundled_deps.js?");
+                error("Failed to both import the bundled and normal discord-rpc module, are you sure it is in plugins/discord_rpc/?");
                 return;
             }
         }
