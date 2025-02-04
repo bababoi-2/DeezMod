@@ -1,5 +1,5 @@
 # DeezMod
-A tool/documentation for injecting custom scripts into the deezer desktop app. Built for windows.
+A tool/documentation for injecting custom scripts into the deezer desktop app.
 
 ## Microsoft Store
 If you used the microsoft store to install Deezer, the installation can more difficult. The files are then usually located at `C:\Program Files\WindowsApps\Deezer.62021768415AF_VERSION_x86__q7m17pa7q8kj0\app\resources`. To gain access to this folder you must give Administrators full access to the `C:\Program Files\WindowsApps\` folder and apply these permission recursively. You can follow this [tutorial](https://forums.flightsimulator.com/t/take-ownership-of-the-windows-apps-folders/388969). Once you've done that, launch the installer (if you use it) as Administrator. This might not actually work, because windows. I'd recommend installing Deezer via their own [installer](https://www.deezer.com/explore/download/). No data should be lost anyways so it should not cause any problems.
@@ -8,7 +8,7 @@ If you used the microsoft store to install Deezer, the installation can more dif
 When updating deezer with the installer (for example to upgrade to version 7.*) please make sure to **backup** any plugins (or similar) you downloaded. The update completely wipes the Deezer installation (every file and folder), so DeezMod and the plugins get deleted. I'm considering moving the plugin location to the documents or appdata folder, we'll see.
 
 ## Other Platforms
- Altough built for Windows, due to the crossplatform nature of electron, it should work on Mac and Linux just fine, you just need to install it manually, see the setup instructions.
+Altough built for Windows, due to the crossplatform nature of electron, it should work on Mac and Linux just fine, you just need to install it manually, see the setup instructions.
 
 ## Setup
 > Note: any mention of `%localappdata%\Programs\deezer-desktop\` can be replaced with wherever your deezer installation is located.
