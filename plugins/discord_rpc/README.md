@@ -2,7 +2,7 @@
 Has the same features as https://github.com/JustYuuto/deezer-discord-rpc (except the adblocker, we don't do that here).
 
 ## If you just want to download the plugin
-Download [this]()
+Download [this](https://github.com/bababoi-2/DeezMod/blob/main/plugins/discord_rpc/bundled_discord_rpc.js)
 
 ## More information
 
