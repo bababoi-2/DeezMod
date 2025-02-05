@@ -122,17 +122,9 @@ module.exports = {
                 .searchbar:hover * {
                     background-color: #373737;
                 }
-                .searchbar>label {
-                    display: flex;
-                    align-items: center;
+                .searchbar>input {
                     width: 100%;
                     cursor: text !important;
-                }
-                .searchbar>label>input {
-                    flex-grow: 1;
-                    color: grey;
-                }
-                .searchbar>label {
                     color: lightgrey;
                 }
                 `;
@@ -152,31 +144,63 @@ module.exports = {
             const searchbar_div = document.createElement("div");
             searchbar_div.className = "searchbar";
             
-            const searchbar_prefix = document.createElement("label");
-            searchbar_prefix.textContent = "https://deezer.com";
             const searchbar_input = document.createElement("input");
             // cheesy way to prevent the input from being focused automatically
             searchbar_input.onclick = () => {
                 searchbar_div.classList.toggle("focused", true);
                 searchbar_input.readOnly = false;
             }
+
+
+            function is_valid_url(url) {
+                try {
+                    return new URL(url);
+                } catch (e) {
+                    return null;
+                }
+            }
+            function fix_url(url) {
+                let parsed_url = is_valid_url(url);
+              
+                if (!parsed_url) { // /path or path
+                    parsed_url = is_valid_url(`https://deezer.com/${url.replace(/^\/+/, '')}`);
+                }
+                
+                if (!parsed_url) { // deezer.com/path
+                    parsed_url = is_valid_url(`https://${url.replace(/^\/+/, '')}`);
+                }
+                
+                if (!parsed_url) { // somethings completely wrong
+                    return url;
+                }
+              
+                parsed_url.protocol = 'https:';
+                parsed_url.host = 'deezer.com';
+                parsed_url.pathname = parsed_url.pathname.replace(/\/*$/, "/")
+
+                return parsed_url;
+            }
+
             searchbar_input.onblur = () => {
+                const fixed_url = fix_url(searchbar_input.value);
+                searchbar_input.value = fixed_url?.href || fixed_url;
+                log("manual url change: ", searchbar_input.value);
+
                 searchbar_div.classList.toggle("focused", false);
                 searchbar_input.readOnly = true;
             }
-            searchbar_input.oninput = () => {
-                searchbar_input.value = searchbar_input.value.replace(/^(https:\/\/(www\.)?)?deezer\.com/, "")
-                console.log(searchbar_input.value);
-            }
             searchbar_input.onkeydown = (event) => {
                 if (event.key === "Enter") {
-                    if (!searchbar_input.value.endsWith("/")) searchbar_input.value += "/";
-                    ipcRenderer.send("manual-url-change", searchbar_input.value);
+                    const fixed_url = fix_url(searchbar_input.value);
+                    // searchbar_input.value = fixed_url?.href || fixed_url; // gets changed due to the event anyways
+                    if (fixed_url.href) {
+                        log("sending manual url change: ", fixed_url.pathname);
+                        ipcRenderer.send("manual-url-change", fixed_url.pathname);
+                    }
                 }
             }
 
-            searchbar_prefix.appendChild(searchbar_input)
-            searchbar_div.appendChild(searchbar_prefix);
+            searchbar_div.appendChild(searchbar_input);
             urlbar_div.append(reload_button, searchbar_div)
 
             const parent = document.querySelector("#headerbar");
@@ -184,7 +208,7 @@ module.exports = {
             
             ipcRenderer.on("renderer-url-changed", (event, url) => {
                 log("Url changed", url);
-                searchbar_input.value = url;
+                searchbar_input.value = "https://deezer.com" + url;
             });
 
             ipcRenderer.send("titlebar-ready");
