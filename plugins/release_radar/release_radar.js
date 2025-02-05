@@ -1,7 +1,7 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application",
-    version: "1.2.5",
+    version: "1.2.6",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["own"],
@@ -178,36 +178,37 @@ module.exports = {
                         }
 
                         fragment AlbumBase on Album {
-                        id
-                        displayTitle
-                        type
-                        releaseDate
-                        isFavorite
-                        cover {
-                            ...PictureSmall
-                        }
-                        ...AlbumContributors
+                            id
+                            displayTitle
+                            type
+                            releaseDate
+                            isFavorite
+                            cover {
+                                ...PictureSmall
+                            }
+                            ...AlbumContributors
                         }
 
                         fragment PictureSmall on Picture {
-                        small: urls(pictureRequest: {height: 56, width: 56})
+                            small: urls(pictureRequest: {height: 56, width: 56})
                         }
 
                         fragment AlbumContributors on Album {
-                        contributors {
-                            edges {
-                            ${config.types.features ? "roles\n      ": ""}node {
-                                ... on Artist {
-                                name${config.types.features ? "\n          id": ""}
+                            contributors {
+                                edges {
+                                    ${config.types.features ? "roles\n": ""}node {
+                                        ... on Artist {
+                                            name${config.types.features ? "\nid": ""}
+                                        }
+                                    }
                                 }
                             }
-                            }
-                        }
                         }`
                 }),
                 "method": "POST",
             });
             if (!r.ok) {
+                error("Bad Response Code on getting releases for artist", artist_id, r.status);
                 return;
             }
             const resp = await r.json();
@@ -242,7 +243,7 @@ module.exports = {
 
                         const result = await get_releases(auth_token, artist_id, cursor);
                         if (!result) {
-                            continue;
+                            break;
                         }
                         [releases, next_page, cursor] = result;
 
@@ -252,7 +253,7 @@ module.exports = {
                             const new_release = {
                                 from_artist: artist_id,
                                 artists: release.node.contributors.edges.map(e => [e.node.name, e.node.id]),
-                                cover_img: release.node.cover.small[0],
+                                cover_id: release.node.cover.small[0]?.split("/cover/", 2)[1].split("/", 1)[0],
                                 name: release.node.displayTitle,
                                 id: release.node.id,
                                 release_date: release.node.releaseDate,
@@ -1116,9 +1117,9 @@ module.exports = {
                 image_container_div.className = "release_radar_img_container_div";
 
                 const release_img = document.createElement("img");
-                release_img.src = release.cover_img;
+                release_img.src = release.cover_img || `https://cdn-images.dzcdn.net/images/cover/${release.cover_id}/56x56-000000-80-0-0.jpg`;
                 release_img.onclick = () => {
-                    window.open(release.cover_img.replace("56x56", "1920x1920")) // max resolution
+                    window.open(release_img.src.replace("56x56", "1920x1920")) // max resolution
                 }
 
                 const play_button = document.createElement("button");
