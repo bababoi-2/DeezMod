@@ -279,7 +279,7 @@ module.exports = {
                 min_length: 60,
                 regexes: [
                     {
-                        str: String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`, // https://regex101.com/r/cU3ajr/1
+                        str: String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`, // https://regex101.com/r/xlxhY7/1
                         flags: "i",
                         type: 0, // 0 = blacklist, 1 = whitelist
                         for_artist: "-1", // -1 = every artist, any other number is artist id
@@ -489,7 +489,7 @@ module.exports = {
             const r = await fetch("https://www.deezer.com/ajax/gw-light.php?method=playlist.create&input=3&api_version=1.0&api_token="+get_api_token(), {
                 "body": JSON.stringify({
                     "title": artist_name,
-                    "description": `A playlist containing all of ${artist_name} songs as of ${formatted_time}.`,
+                    "description": `A playlist containing all songs by ${artist_name} as of ${formatted_time}.`,
                     "songs": songs.map((s) => [s]),
                     "status": 1
                 }),
