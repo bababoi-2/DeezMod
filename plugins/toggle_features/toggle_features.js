@@ -12,6 +12,8 @@ module.exports = {
 
         CUSTOM_FEATURES = {
             gapless_playback: true,
+            // revamp_best_results: true,
+            // deeztools: true, // simple way to toggle most of the custom features
         }
 
         // ======= Settings END =======
@@ -51,7 +53,7 @@ module.exports = {
 
                         for (let feature of Object.entries(CUSTOM_FEATURES)) {
                             features[feature[0]] = feature[1];
-                            log(feature[0] ? 'Enabled' : 'Disabled', feature[0]);
+                            log(feature[1] ? 'Enabled' : 'Disabled', feature[0]);
                         }
                         
                     }
