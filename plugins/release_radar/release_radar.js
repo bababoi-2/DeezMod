@@ -1,16 +1,17 @@
 module.exports = {
     name: "Release Radar",
     description: "Creates a Release Radar to view songs from artists you follow. Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application",
-    version: "1.2.6",
+    version: "1.2.7",
     author: "Bababoiiiii",
     context: ["renderer"],
     scope: ["own"],
     func: () => {
         // Port of https://github.com/bababoi-2/Deezer-Release-Radar for the elecetron desktop application
         // TODO:
+        // handle ratelimits in some way
         // add to x playlist if from y artist
         // better debug logging
-        // restructure to use more OOP (avoid globals etc)
+        // restructure to use more OOP (avoid globals etc) and use smaller functions (i dont think ill ever do that, too much clusterfuck here, this whole project wasnt meant to get this big)
 
         "use strict";
 
@@ -28,6 +29,10 @@ module.exports = {
 
 
         // data stuff
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
 
         async function get_user_data() {
             // best to run this before doing anything else
@@ -143,7 +148,7 @@ module.exports = {
                     "operationName": "ArtistDiscographyByType",
                     "variables": {
                         "artistId": artist_id,
-                        "nb": Math.max(2, Math.floor(config.max_song_age/4)), // 1 release every 4 days (or 2 if max age < 8 days) to try to get as little songs as possible, but also try to avoid multiple requests
+                        "nb": Math.max(2, Math.floor(config.limits.max_song_age/4)), // 1 release every 4 days (or 2 if max age < 8 days) to try to get as little songs as possible, but also try to avoid multiple requests
                         "cursor": cursor,
                         "mode": "OFFICIAL",
                         "subType": null,
@@ -264,7 +269,7 @@ module.exports = {
 
                             // stop requesting songs if the song is older than the age limit...
                             
-                            if ( ( (config.max_song_age < 0 && cache[user_data.user_id].last_checked > 0) && new_release.release_date < cache[user_data.user_id].last_checked) || (config.max_song_age >= 0 && current_time - new_release.release_date > 1000*60*60*24*config.max_song_age) ) {
+                            if ( ( (config.limits.max_song_age < 0 && cache[user_data.user_id].last_checked > 0) && new_release.release_date < cache[user_data.user_id].last_checked) || (config.limits.max_song_age >= 0 && current_time - new_release.release_date > 1000*60*60*24*config.limits.max_song_age) ) {
                                 debug("Release was too old", new_release.id);
                                 next_page = null;
                                 break;
@@ -284,7 +289,7 @@ module.exports = {
                             // the smaller the time the older the song
                             if (current_oldest_song_which_got_added_time > new_release.release_date) {
                                 debug("Release is older than the current oldest song", new_release.id);
-                                if (new_releases.length >= config.max_song_count) {
+                                if (new_releases.length >= config.limits.max_song_count) {
                                     debug("Release was filtered because its older than the oldest song and song limit is reached", new_release.id)
                                     next_page = null;
                                     break;
@@ -311,26 +316,27 @@ module.exports = {
                 await Promise.all(batch_promises);
             }
 
-            const batch_size = config.simultaneous_artists;
             let artists_handled = 0;
-            for (let i = 0; i < artist_ids.length; i += batch_size) {
-                const batch_artist_ids = artist_ids.slice(i, i + batch_size);
+            for (let i = 0; i < artist_ids.length; i += config.parallelism.batch_size) {
+                const batch_artist_ids = artist_ids.slice(i, i + config.parallelism.batch_size);
                 await process_artist_batch(batch_artist_ids);
+                debug(`Waiting ${config.parallelism.batch_delay}ms before doing next artist batch`);
+                await sleep(config.parallelism.batch_delay);
             }
 
             await Promise.all(amount_of_songs_in_each_album_promises);
             debug("Got all releases, sorting");
             new_releases.sort((a, b) => b.release_date - a.release_date); // sort newest songs first
-            return new_releases.slice(0, config.max_song_count);
+            return new_releases.slice(0, config.limits.max_song_count);
         }
 
         async function get_all_songs_from_album(album_id) {
-                const r = await safe_fetch("https://www.deezer.com/ajax/gw-light.php?method=song.getListByAlbum&input=3&api_version=1.0&api_token=", {
-                    "body": JSON.stringify({
-                        "alb_id": album_id,
-                        "start": 0,
-                        "nb": 500
-                    }),
+            const r = await safe_fetch("https://www.deezer.com/ajax/gw-light.php?method=song.getListByAlbum&input=3&api_version=1.0&api_token=", {
+                "body": JSON.stringify({
+                    "alb_id": album_id,
+                    "start": 0,
+                    "nb": 500
+                }),
                     "method": "POST",
                     "credentials": "include"
                 });
@@ -417,10 +423,12 @@ module.exports = {
                 });
                 await Promise.all(promises);
             }
-            const batch_size = config.simultaneous_artists;
-            for (let i = 0; i < new_releases.length; i += batch_size) {
-                const batch = new_releases.slice(i, i + batch_size);
+            
+            for (let i = 0; i < new_releases.length; i += config.parallelism.batch_size) {
+                const batch = new_releases.slice(i, i + config.parallelism.batch_size);
                 await process_batch(batch);
+                debug(`Waiting ${config.parallelism.batch_delay}ms before doing next album song batch`);
+                await sleep(config.parallelism.batch_delay);
             }
 
             for (let song_in_playlist of songs_in_playlist) {
@@ -482,21 +490,21 @@ module.exports = {
             localStorage.setItem("release_radar_cache", JSON.stringify(data));
         }
 
-        function migrate_config(config, CURRENT_CONFIG_VERSION) {
+        class StringConfig {
             // functions to traverse and edit a json based on string paths
-            const get_value = (obj, path) => {
+            static get_value(obj, path) {
                 return path.split(".").reduce((acc, key) => acc && acc[key], obj);
             }
-            const set_key = (obj, path, value) => {
+            static set_key(obj, path, value) {
                 let current = obj;
                 const keys = path.split(".");
                 keys.slice(0, -1).forEach(key => {
-                        current[key] = current[key] ?? (/^\d+$/.test(k) ? [] : {});
-                        current = current[key];
-                    });
-                    current[keys[keys.length - 1]] = value;
+                    current[key] = current[key] ?? (/^\d+$/.test(key) ? [] : {});
+                    current = current[key];
+                });
+                current[keys[keys.length - 1]] = value;
             }
-            const delete_key = (obj, path) => {
+            static delete_key(obj, path) {
                 let current = obj;
                 const keys = path.split(".");
                 keys.slice(0, -1).forEach(key => {
@@ -505,13 +513,17 @@ module.exports = {
                 });
                 delete current[keys[keys.length - 1]];
             }
-            function move_key(obj, from, to) {
-                const value = get_value(obj, from);
+            static move_key(obj, from, to) {
+                const value = this.get_value(obj, from);
                 if (value !== undefined) {
-                    set_key(obj, to, value);
-                    delete_key(obj, from);
+                    this.set_key(obj, to, value);
+                    this.delete_key(obj, from);
                 }
             }
+        }
+
+        function migrate_config(config, CURRENT_CONFIG_VERSION) {
+            
             // patch structure
             // [from, to, ?value]
                 // if both "from" and "to" exist, we change the path from "from" to "to"
@@ -523,8 +535,8 @@ module.exports = {
                     [null, "compact_mode", false],
                     [null, "filters", {
                         "contributor_id": ["5080"],
-                        "release_name": [String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
-                        "song_name": [String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
+                        "release_name": [String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
+                        "song_name": [String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
                     }],
                     [null, "types", {
                         singles: true,
@@ -539,6 +551,12 @@ module.exports = {
                 ],
                 [
                     [null, "compact_mode", 0]
+                ],
+                [
+                    ["simultaneous_artists", "parallelism.batch_size"],
+                    [null, "parallelism.batch_delay", 0],
+                    ["max_song_count", "limits.max_song_count"],
+                    ["max_song_age", "limits.max_song_age"]
                 ]
             ]
 
@@ -549,11 +567,11 @@ module.exports = {
                 }
                 patches[patch].forEach(([from, to, value]) => {
                     if (from && to) {
-                        move_key(config, from, to);
+                        StringConfig.move_key(config, from, to);
                     } else if (!from && to) {
-                        set_key(config, to, value);
+                        StringConfig.set_key(config, to, value);
                     } else if (from && !to) {
-                        delete_key(config, from);
+                        StringConfig.delete_key(config, from);
                     }
                 });
                 log("Migrated to version", patch);
@@ -562,7 +580,7 @@ module.exports = {
         }
 
         function get_config() {
-            const CURRENT_CONFIG_VERSION = 2;
+            const CURRENT_CONFIG_VERSION = 3;
 
             let config = localStorage.getItem("release_radar_config");
             if (config) {
@@ -578,16 +596,21 @@ module.exports = {
             log("No config found, creating new");
             return { // base default config
                 config_version: CURRENT_CONFIG_VERSION,
-                simultaneous_artists: 10,
-                max_song_count: 30,
-                max_song_age: 30,
+                limits: {
+                    max_song_count: 30,
+                    max_song_age: 30
+                },
                 open_in_app: false,
                 playlist_id: null,
                 compact_mode: 0,
+                parallelism: {
+                    batch_size: 10,
+                    batch_delay: 0
+                },
                 filters: {
                     "contributor_id": ["5080"], // 5080 = Various Artists
-                    "release_name": [String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
-                    "song_name": [String.raw`[([-] *(((super )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`], // dont add if any of the songs in the release hit a blacklist regex, may be difficult due to async nature
+                    "release_name": [String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`],
+                    "song_name": [String.raw`[([-] *((((super|over) )?slowed( *down)?)|(spee?d( up)?)|(reverb)|(8d audio)|(live))(.*reverb)?( *version)? *[)\]]? *$`], // dont add if any of the songs in the release hit a blacklist regex, may be difficult due to async nature
                 },
                 types: {
                     singles: true,
@@ -825,7 +848,7 @@ module.exports = {
         .release_radar_main_div_header_div > div > label {
             display: flex;
             flex-direction: column;
-            color: var(--tempo-colors-text-neutral-secondary-default);
+            color: var(--tempo-colors-neutral-70);
         }
 
         .release_radar_main_div_header_div > div > label > input,
@@ -850,10 +873,8 @@ module.exports = {
         .release_radar_main_div_header_div > div > label > textarea::-webkit-scrollbar {
             height: 10px;
         }
-        .release_radar_main_div_header_div > div > label > input:hover,
-        .release_radar_main_div_header_div > div > label > textarea:hover,
-        .release_radar_main_div_header_div > div > label > select:hover,
-        .release_radar_main_div_header_div > div > label > button:hover {
+        
+        .release_radar_main_div_header_div > div > label > *:hover {
             background-color: var(--tempo-colors-background-neutral-tertiary-hovered);
         }
         .release_radar_main_div_header_div > div > label > input:focus,
@@ -1462,7 +1483,7 @@ module.exports = {
 
                  // if all the upcoming releases are filtered out, hide the details element
                 const upcoming_releases_details = main_div.querySelector("details");
-                upcoming_releases_details.classList.toggle("hide", upcoming_releases_details && !upcoming_releases_details.querySelector("li:not(.hide)"));
+                upcoming_releases_details?.classList.toggle("hide", upcoming_releases_details && !upcoming_releases_details.querySelector("li:not(.hide)"));
             }
             
             const settings_wrapper = document.createElement("div");
@@ -1524,10 +1545,32 @@ module.exports = {
 
             settings_wrapper.appendChild(
                 (new Setting(
+                    "Density", // help i cant do compact bc its too wide
+                    "Make everything more compact, allowing for more songs to be viewed at once.",
+                    config, "compact_mode",
+                    "span 2"
+                )).dropdown_setting(["Normal", "Compact", "No image", "Minimal"], null, () => {
+                    set_compact_mode(main_div);
+                })
+            );
+
+            settings_wrapper.appendChild(
+                (new Setting(
+                    "App",
+                    "Open the links in the deezer desktop app (useless if already on desktop).",
+                    config, "open_in_app",
+                    "span 1"
+                )).checkbox_setting(null, (checked) => {
+                    main_div.querySelectorAll("a").forEach(a => a.href = a.href.replace(checked ? "https" : "deezer", checked ? "deezer" : "https"));
+                })
+            );
+            
+            settings_wrapper.appendChild(
+                (new Setting(
                     "Max. Songs",
                     "The maximum amount of songs displayed at once. Only applies after a new scan.",
-                    config, "max_song_count",
-                    "span 2"
+                    config.limits, "max_song_count",
+                    "1 / span 2"
                 )).number_setting(null, null, [0, null, 5])
             );
 
@@ -1535,18 +1578,9 @@ module.exports = {
                 (new Setting(
                     "Max. Age",
                     "The maximum age of a displayed song (in days). Values below 0 mean to only get songs released after the last scan (improves performance). This affects how many requests are made, so keep it low to avoid performance/ratelimit issues. Only applies after a new scan.",
-                    config, "max_song_age",
+                    config.limits, "max_song_age",
                     "span 2"
                 )).number_setting(null, null, [-1, null, 5])
-            );
-
-            settings_wrapper.appendChild(
-                (new Setting(
-                    "Parallelism",
-                    "How many artists are handled simultaneously. This greatly impacts the speed of fetching the releases. If you get ratelimited or frequent errors occur, turn this down.",
-                    config, "simultaneous_artists",
-                    "span 2"
-                )).number_setting(null, null, [1, null, 1])
             );
 
             settings_wrapper.appendChild(
@@ -1560,24 +1594,20 @@ module.exports = {
 
             settings_wrapper.appendChild(
                 (new Setting(
-                    "Density", // help i cant do compact bc its too wide
-                    "Make everything more compact, allowing for more songs to be viewed at once.",
-                    config, "compact_mode",
+                    "Batch Size",
+                    "How many requests are made simultaneously. This greatly impacts the speed of fetching the releases and the performance of the add to playlist feature. If you get ratelimited or frequent errors occur, turn this down.",
+                    config.parallelism, "batch_size",
                     "span 2"
-                )).dropdown_setting(["Normal", "Compact", "No image", "Minimal"], null, () => {
-                    set_compact_mode(main_div);
-                })
+                )).number_setting(null, null, [1, null, 1])
             );
 
             settings_wrapper.appendChild(
                 (new Setting(
-                    "App",
-                    "Open the links in the deezer desktop app.",
-                    config, "open_in_app",
-                    "span 1"
-                )).checkbox_setting(null, (checked) => {
-                    main_div.querySelectorAll("a").forEach(a => a.href = a.href.replace(checked ? "https" : "deezer", checked ? "deezer" : "https"));
-                })
+                    "Batch Delay",
+                    "How long to wait between each batch of requests in ms. If you get ratelimited, turn this up.",
+                    config.parallelism, "batch_delay",
+                    "span 2"
+                )).number_setting(null, null, [0, null, 50])
             );
 
             settings_wrapper.appendChild(
@@ -1666,7 +1696,7 @@ module.exports = {
             reload_button.onclick = () => {
                 debug("Clearing cache and reloading");
                 cache[user_data.user_id].new_releases = [];
-                if (config.max_song_age >= 0) cache[user_data.user_id].last_checked = 0; // if the max age is -1, we check if the song is newer than the last check, which would result in max requests for every artist if the last_checked is 0
+                if (config.limits.max_song_age >= 0) cache[user_data.user_id].last_checked = 0; // if the max age is -1, we check if the song is newer than the last check, which would result in max requests for every artist if the last_checked is 0
                 set_cache(cache);
                 location.reload();
             }
@@ -1806,7 +1836,7 @@ module.exports = {
 
                 parent_div.append(wrapper_div);
                 parent.querySelectorAll("div.popper-wrapper.topbar-action").forEach(e => e.addEventListener("click", (e) => {wrapper_div.classList.add("hide")} ))
-                parent.insertBefore(parent_div, parent.querySelector("div:nth-child(2)"));
+                parent.insertBefore(parent_div, parent.querySelector("div.popper-wrapper.topbar-action"));
 
                 log("Waiting for data");
                 await wait_for_new_releases_promise;
